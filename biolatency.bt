@@ -1,0 +1,26 @@
+BEGIN {
+    printf("this marks beginning for measuring io latency at block layer\n");
+}
+/*
+here assumed that only one thread is doing IO on a single sector
+*/
+tracepoint:block:block_bio_queue {
+    @start[args.sector] = nsecs;
+}
+
+/*
+logical OR of two tracepoint
+*/
+tracepoint:block:block_rq_complete,
+tracepoint:block:block_bio_complete
+
+/ @start[args.sector] /
+
+{
+    @usecs = hist((nsecs - @start[args.sector])/1000);
+    delete(@start[args.sector]);
+}
+
+END{
+    clear(@start);
+}
