@@ -1,0 +1,11 @@
+/*
+    biosnoop with tracepoints does not work yet
+*/
+
+
+tracepoint:block:block_io_start
+{
+	printf("Device %d with major %d and minor %d and sector %d and process %s\n", args.dev, args.dev>>20, args.dev&((1U<<20)-1), args.sector, comm);
+	$disk = *(struct blk_major_name **)kaddr("major_names");
+	printf("Device name: %s\n", $disk->name);
+}
