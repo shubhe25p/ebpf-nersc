@@ -1,0 +1,50 @@
+#!/usr/bin/env bpftrace
+/*
+ * biosnoop.bt   Block I/O tracing tool, showing per I/O latency.
+ *               For Linux, uses bpftrace, eBPF.
+ *
+ */
+
+#ifndef BPFTRACE_HAVE_BTF
+#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
+#endif
+
+BEGIN
+{
+	printf("%-12s %-7s %-16s %-6s %7s\n", "TIME(ms)", "DISK", "COMM", "PID", "LAT(ms)");
+}
+
+tracepoint:block:block_io_start
+{
+	@start[args.sector] = nsecs;
+	@iopid[args.sector] = pid;
+	@iocomm[args.sector] = comm;
+    $major_names = (struct blk_major_name **)kaddr("major_names");
+    $major_number = args.dev >> 20;
+	@disk[args.sector] = (*($major_number+$major_names)->name);
+}
+
+tracepoint:block:block_rq_complete,
+tracepoint:block:block_bio_complete
+/@start[args.sector] != 0 && @iopid[args.sector] != 0 && @iocomm[args.sector] != ""/
+
+{
+	$now = nsecs;
+	printf("%-12u %-7s %-16s %-6d %7d\n",
+	    elapsed / 1e6, @disk[args.sector], @iocomm[args.sector], @iopid[args.sector],
+	    ($now - @start[args.sector]) / 1e6);
+
+	delete(@start[args.sector]);
+	delete(@iopid[args.sector]);
+	delete(@iocomm[args.sector]);
+	delete(@disk[args.sector]);
+}
+
+END
+{
+	clear(@start);
+	clear(@iopid);
+	clear(@iocomm);
+	clear(@disk);
+}
