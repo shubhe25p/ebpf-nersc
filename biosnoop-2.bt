@@ -22,7 +22,7 @@ tracepoint:block:block_io_start
 	@iocomm[args.sector] = comm;
     $major_names = (struct blk_major_name **)kaddr("major_names");
     $major_number = args.dev >> 20;
-	@disk[args.sector] = (*($major_number+$major_names)->name);
+	@disk[args.sector] = ((*($major_number+$major_names))->name);
 }
 
 tracepoint:block:block_rq_complete,
