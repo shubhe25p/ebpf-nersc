@@ -4,6 +4,10 @@
 
 Reason for OpenSUSE was because of some strange segfaults and binary stripping in Ubuntu Jammy 22.04 both with apt package manager and manual install. (See Issue: https://github.com/bpftrace/bpftrace/issues/954)
 
+## Installing bcc with zypper package manger on OpenSUSE Leap 15.6
+
+The default installation command installs kernel headers at a weird place and not in /usr/modules/$(uname -r), thus importing bcc with python interpreter might break, a fix would be to manually install kernel headers from this [link](https://docs.vmware.com/en/VMware-Carbon-Black-Cloud-on-AWS-GovCloud-(US)/services/cb-cloud-on-govcloud-sensor-installation-guide/GUID-BDB4D7C7-FAC8-4C52-A9DA-C2C34E456D35.html)
+
 # bpftrace install
 ```
 sudo zypper install bpftrace
