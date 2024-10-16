@@ -6,7 +6,7 @@ Reason for OpenSUSE was because of some strange segfaults and binary stripping i
 
 ## Installing bcc with zypper package manger on OpenSUSE Leap 15.6
 
-The default installation command installs kernel headers at a weird place and not in /usr/src/$(uname -r), thus bcc might break, a fix would be to manually install kernel headers from this [link](https://docs.vmware.com/en/VMware-Carbon-Black-Cloud-on-AWS-GovCloud-(US)/services/cb-cloud-on-govcloud-sensor-installation-guide/GUID-BDB4D7C7-FAC8-4C52-A9DA-C2C34E456D35.html)
+The default installation command installs kernel headers at a weird place and not in /lib/modules/$(uname -r), thus bcc might break, a fix would be to manually install kernel headers from this [link](https://docs.vmware.com/en/VMware-Carbon-Black-Cloud-on-AWS-GovCloud-(US)/services/cb-cloud-on-govcloud-sensor-installation-guide/GUID-BDB4D7C7-FAC8-4C52-A9DA-C2C34E456D35.html)
 
 # bpftrace install
 ```
