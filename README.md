@@ -84,3 +84,16 @@ bpftrace -e 'tracepoint:block:block_rq_issue { @=hist(args.bytes ); }'
 
 
 ```
+
+Kernel headers could be replaced by creating a vmlinux.h file, you can create it with this line
+
+```
+bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
+```
+
+Libbpf code organization:
+
+1. <app>.bpf.c files are the BPF C code that contain the logic which is to be executed in the kernel context;
+2. <app>.c is the user-space C code, which loads BPF code and interacts with it throughout the lifetime of the application;
+optional 
+3. <app>.h is a header file with the common type definitions and is shared by both BPF and user-space code of the applicatio

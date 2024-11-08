@@ -9,7 +9,7 @@ void random_file_operations(const char *files[], int num_files) {
     int i, file_index;
     FILE *file;
 
-    for (i = 0; i < 5; i++) { // Perform 10 random operations
+    for (i = 0; i < 100; i++) { // Perform 10 random operations
         // Select a random file from the list
         file_index = rand() % num_files;
         const char *filename = files[file_index];

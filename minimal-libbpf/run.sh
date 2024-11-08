@@ -1,0 +1,1 @@
+clang -target bpf -I/lib/modules/$(uname -r)/include -O2 -g -c hello-func.bpf.c -o hello-func.bpf.o
