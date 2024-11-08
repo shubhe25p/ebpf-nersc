@@ -66,35 +66,22 @@ int trace_sys_enter(struct pt_regs *ctx) {
     bpf_probe_read_kernel(&mnt, sizeof(mnt), &pwd_path.mnt);
     if (!mnt)
         return 0;
-
-    // Read mnt->mnt_sb (super_block)
     
 
     bpf_probe_read_kernel(&mnt_point, sizeof(mnt_point), &mnt->mnt_root);
     if (!mnt_point)
         return 0;
     
+    // read vfs_mount dentry
     bpf_probe_read_kernel(&dname, sizeof(dname), &mnt_point->d_name);
     
+    // read dentry qstr
     bpf_probe_read_kernel(&fsname_ptr, sizeof(fsname_ptr), &dname.name);
     bpf_probe_read_kernel_str(&fsname, sizeof(fsname), fsname_ptr);
-
-    bpf_probe_read_kernel(&superblock, sizeof(superblock), &mnt_point->d_sb);
-    if (!superblock)
-        return 0;
-    
-    // Read superblock->s_type (file_system_type)
-    bpf_probe_read_kernel(&fstype, sizeof(fstype), &superblock->s_type);
-    if (!fstype)
-        return 0;
-
-    // Read fstype->name (file system type name)
-    bpf_probe_read_kernel(&fsname_ptr, sizeof(fsname_ptr), &fstype->name);
-    bpf_probe_read_kernel_str(&fstypename, sizeof(fstypename), fsname_ptr);
     
     // Send the file system name to user space
     bpf_trace_printk("Process %d is using file system: %s\\n", task->pid, fsname);
-    bpf_trace_printk("Process %d is using file system type: %s\\n", task->pid, fstypename);
+    
     return 0;
 }
 """
