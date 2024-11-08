@@ -104,7 +104,7 @@ b.attach_tracepoint(tp="syscalls:sys_exit_write", fn_name="trace_sys_enter")
 print("Tracing syscalls... Press Ctrl-C to end.")
 
 # Format output
-print("%-18s %-6s %s %s" % ("TIME(s)", "PID", "FILE SYSTEM", "TYPE"))
+print("%-18s %-6s %s" % ("TIME(s)", "PID", "FILE SYSTEM"))
 
 
 # Trace output
@@ -115,10 +115,8 @@ try:
         (task, pid, cpu, flags, ts, msg) = b.trace_fields()
         elapsed = time.time() - start_time
         fields = msg.decode('utf-8', 'replace').split("is using file system: ")
-        fields_type = msg.decode('utf-8', 'replace').split("is using file system type: ")
         if len(fields) == 2:
             pid_info = fields[0].strip().split()
-            pid_info_type = fields[0].strip().split()
             if len(pid_info) >= 2:
                 pid = pid_info[1]
                 fs_name = fields[1]
