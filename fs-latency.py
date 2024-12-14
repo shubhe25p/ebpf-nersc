@@ -164,36 +164,12 @@ TRACEPOINT_PROBE(syscalls, sys_exit_read) {
 
 label = "usecs"
 
-if BPF.kernel_struct_has_field(b'request', b'rq_disk') == 1:
-    bpf_text = bpf_text.replace('__RQ_DISK__', 'rq_disk')
-else:
-    bpf_text = bpf_text.replace('__RQ_DISK__', 'q->disk')
-
 # load BPF program
 b = BPF(text=bpf_text)
 
 
 print("Tracing FileSystem I/O... Hit Ctrl-C to end.")
 
-
-# output
-# exiting = 0 if args.interval else 1
-# dist = b.get_table("dist")
-
-# while (1):
-#     try:
-#         sleep(int(args.interval))
-#     except KeyboardInterrupt:
-#         exiting = 1
-
-#     print()
-#     dist.print_log2_hist(label, "disk", "?")
-
-#     dist.clear()
-
-#     countdown -= 1
-#     if exiting or countdown == 0:
-#         exit()
 
 def signal_ignore(signal, frame):
     print()
