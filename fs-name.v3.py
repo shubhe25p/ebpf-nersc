@@ -5,12 +5,14 @@ import time
 
 bpf_text="""
 #include <linux/sched.h>
+#include <linux/fs_struct.h>
 
 void trace_sys_enter(void* ctx)
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    struct fs_struct *fs = (struct fs_struct* )task->fs;
 
-    bpf_trace_printk("Process %d is using file system: %d\\n", task->on_cpu, task->on_cpu);
+    bpf_trace_printk("Process %d is using file system: %d\\n", task->on_cpu, fs->users);
 }
 """
 
