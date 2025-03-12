@@ -28,6 +28,7 @@ print("%-18s %-6s %s" % ("TIME(s)", "PID", "FILE SYSTEM"))
 start_time = time.time()
 try:
     while True:
+        (task, pid, cpu, flags, ts, msg) = b.trace_fields()
         elapsed = time.time() - start_time
         fields = msg.decode('utf-8', 'replace').split("is using file system: ")
         if len(fields) == 2:
