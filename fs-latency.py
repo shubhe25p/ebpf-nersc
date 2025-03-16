@@ -28,7 +28,6 @@ from collections import defaultdict
 
 # define BPF program
 bpf_text = """
-#include <uapi/linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/mount.h>
 #include <linux/path.h>
