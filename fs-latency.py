@@ -58,18 +58,14 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     
     
     char fsname[32];
-    struct qstr dname;
     struct key_t key = {};
 
     
 
     // Get current task_struct
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    const char *fsname_ptr = task->fs->pwd.mnt->mnt_root->dname.name;
-    
-    bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fsname_ptr);
-   
-
+    const unsigned char *name = task->fs->pwd.mnt->mnt_root->d_name.name;
+    bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), name);
     
     u64 ts = bpf_ktime_get_ns();
     start.update(&key, &ts);
