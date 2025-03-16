@@ -49,13 +49,13 @@ BPF_HASH(fshist, struct key_t, u64);
 // time block I/O
 TRACEPOINT_PROBE(syscalls, sys_enter_read)
 {
-    struct task_struct *task;
+    
     struct fs_struct *fs;
     struct path pwd_path;
     struct vfsmount *mnt;
     struct super_block *superblock;
     struct file_system_type *fstype;
-    struct dentry *mnt_point;
+    
     const char *fsname_ptr;
     char fsname[32];
     struct qstr dname;
@@ -64,26 +64,9 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     
 
     // Get current task_struct
-    task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     // Read task->fs
-    bpf_probe_read_kernel(&fs, sizeof(fs), &task->fs);
-    if (!fs)
-        return 0;
-
-    // Read fs->pwd (current working directory)
-    bpf_probe_read_kernel(&pwd_path, sizeof(pwd_path), &fs->pwd);
-
-    // Read pwd_path.mnt (vfsmount)
-    bpf_probe_read_kernel(&mnt, sizeof(mnt), &pwd_path.mnt);
-    if (!mnt)
-        return 0;
-    
-
-    bpf_probe_read_kernel(&mnt_point, sizeof(mnt_point), &mnt->mnt_root);
-    if (!mnt_point)
-        return 0;
-    
-    // read vfs_mount dentry
+    struct dentry *mnt_point = task->fs->pwd.mnt->dentry;
     bpf_probe_read_kernel(&dname, sizeof(dname), &mnt_point->d_name);
     
     // read dentry qstr
