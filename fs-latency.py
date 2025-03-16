@@ -29,14 +29,11 @@ from collections import defaultdict
 # define BPF program
 bpf_text = """
 #include <uapi/linux/ptrace.h>
-#include <linux/blk-mq.h>
-#include <uapi/linux/ptrace.h>
-#include <linux/fs.h>
-#include <linux/dcache.h>
 #include <linux/sched.h>
 #include <linux/mount.h>
 #include <linux/path.h>
 #include <linux/fs_struct.h>
+#include <linux/dcache.h>
 
 struct key_t{
     char fsname[32];
