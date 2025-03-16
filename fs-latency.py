@@ -56,7 +56,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     struct super_block *superblock;
     struct file_system_type *fstype;
     
-    const char *fsname_ptr;
+    
     char fsname[32];
     struct qstr dname;
     struct key_t key = {};
@@ -65,12 +65,8 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
 
     // Get current task_struct
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    // Read task->fs
-    struct dentry *mnt_point = task->fs->pwd.mnt->mnt_root;
-    bpf_probe_read_kernel(&dname, sizeof(dname), &mnt_point->d_name);
+    const char *fsname_ptr = task->fs->pwd.mnt->mnt_root->dname.name;
     
-    // read dentry qstr
-    bpf_probe_read_kernel(&fsname_ptr, sizeof(fsname_ptr), &dname.name);
     bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fsname_ptr);
    
 
