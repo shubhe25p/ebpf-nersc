@@ -16,7 +16,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     struct fd_info info = {};
     // think of storing fd somewhere
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    const unsigned char *fs_name = task->files->fdt->fd[args->fd].f_path->mnt->mnt_root->d_name.name;
+    const unsigned char *fs_name = task->files->fdt->fd[args->fd]->f_path.mnt->mnt_root->d_name.name;
     bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fs_name);
     u64 ts = bpf_ktime_get_ns();
     u64 ts = bpf_ktime_get_ns();
