@@ -38,8 +38,15 @@ struct key_t{
     char fsname[32];
     u64 bucket;
 };
+
+struct val_t{
+    u64 pid_tgid;
+    unsigned int fd;
+};
+
 BPF_HASH(start, struct key_t);
 BPF_HASH(fshist, struct key_t, u64);
+BPF_HASH(cache, struct val_t, struct key_t);
 
 
 // time block I/O
@@ -48,14 +55,27 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     
     char fsname[32];
     struct key_t key = {};
+    struct val_t val = {};
+    val.pid_tgid = bpf_get_current_pid_tgid();
+    val.fd = args->fd;
+    struct key_t *temp = cache.lookup(&val);
+    if(temp==NULL)
+    {
 
     // Get current task_struct
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     const unsigned char *name = task->fs->pwd.mnt->mnt_root->d_name.name;
     bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), name);
-    
-    u64 ts = bpf_ktime_get_ns();
+    cache.update(&val, &key);
+     u64 ts = bpf_ktime_get_ns();
     start.update(&key, &ts);
+    }
+    else
+    {
+         u64 ts = bpf_ktime_get_ns();
+         start.update(temp, &ts);
+    }
+   
     return 0;
 }
 
@@ -65,13 +85,11 @@ TRACEPOINT_PROBE(syscalls, sys_exit_read) {
     u64 *tsp, delta;
     u64 zero=0, *val;
     struct key_t key = {};
-
     
-
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     const unsigned char *name = task->fs->pwd.mnt->mnt_root->d_name.name;
     bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), name);
-    
+   
     // fetch timestamp and calculate delta
     tsp = start.lookup(&key);
     if (tsp == 0) {
