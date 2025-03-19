@@ -12,13 +12,10 @@ bpf_text="""
 TRACEPOINT_PROBE(syscalls, sys_enter_read)
 {
     char fsname[32];
-    struct fs_key key = {};
-    struct fd_info info = {};
     // think of storing fd somewhere
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     const unsigned char *fs_name = task->files->fdt->fd[args->fd]->f_path.mnt->mnt_root->d_name.name;
     bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fs_name);
-    u64 ts = bpf_ktime_get_ns();
     u64 ts = bpf_ktime_get_ns();
     
     bpf_trace_printk("Process %d is using file system: %s\\n", task->pid, fsname);
