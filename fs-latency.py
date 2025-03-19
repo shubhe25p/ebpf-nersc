@@ -26,7 +26,6 @@ import signal
 import sys
 from collections import defaultdict
 
-# define BPF program
 bpf_text = """
 #include <linux/sched.h>
 #include <linux/mount.h>
@@ -34,77 +33,70 @@ bpf_text = """
 #include <linux/fs_struct.h>
 #include <linux/dcache.h>
 
-struct key_t{
+struct fs_key {
     char fsname[32];
     u64 bucket;
 };
 
-struct val_t{
+struct fd_info {
     u64 pid_tgid;
     unsigned int fd;
 };
 
-BPF_HASH(start, struct key_t);
-BPF_HASH(fshist, struct key_t, u64);
-BPF_HASH(cache, struct val_t, struct key_t);
+BPF_HASH(read_start, struct fs_key);
+BPF_HASH(fs_latency_hist, struct fs_key, u64);
+BPF_HASH(fd_fs_cache, struct fd_info, struct fs_key);
 
-
-// time block I/O
 TRACEPOINT_PROBE(syscalls, sys_enter_read)
 {
-    
     char fsname[32];
-    struct key_t key = {};
-    struct val_t val = {};
-    val.pid_tgid = bpf_get_current_pid_tgid();
-    val.fd = args->fd;
-    struct key_t *temp = cache.lookup(&val);
-    if(temp==NULL)
+    struct fs_key key = {};
+    struct fd_info info = {};
+    info.pid_tgid = bpf_get_current_pid_tgid();
+    info.fd = args->fd;
+    struct fs_key *cached_key = fd_fs_cache.lookup(&info);
+    if(cached_key == NULL)
     {
-
-    // Get current task_struct
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    const unsigned char *name = task->fs->pwd.mnt->mnt_root->d_name.name;
-    bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), name);
-    cache.update(&val, &key);
-     u64 ts = bpf_ktime_get_ns();
-    start.update(&key, &ts);
+        // Get current task_struct
+        struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+        const unsigned char *fs_name = task->fs->pwd.mnt->mnt_root->d_name.name;
+        bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fs_name);
+        fd_fs_cache.update(&info, &key);
+        u64 ts = bpf_ktime_get_ns();
+        read_start.update(&key, &ts);
     }
     else
     {
-         u64 ts = bpf_ktime_get_ns();
-         start.update(temp, &ts);
+        u64 ts = bpf_ktime_get_ns();
+        read_start.update(cached_key, &ts);
     }
    
     return 0;
 }
 
-
-// output
 TRACEPOINT_PROBE(syscalls, sys_exit_read) {
-    u64 *tsp, delta;
-    u64 zero=0, *val;
-    struct key_t key = {};
+    u64 *start_ts, latency;
+    u64 zero = 0, *count;
+    struct fs_key key = {};
     
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    const unsigned char *name = task->fs->pwd.mnt->mnt_root->d_name.name;
-    bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), name);
+    const unsigned char *fs_name = task->fs->pwd.mnt->mnt_root->d_name.name;
+    bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fs_name);
    
     // fetch timestamp and calculate delta
-    tsp = start.lookup(&key);
-    if (tsp == 0) {
+    start_ts = read_start.lookup(&key);
+    if (start_ts == 0) {
         return 0;   // missed issue
     }
-    delta = bpf_ktime_get_ns() - *tsp;
+    latency = bpf_ktime_get_ns() - *start_ts;
 
-    delta /= 1000;
-
+    latency /= 1000;  // convert to microseconds
     
-    key.bucket = bpf_log2l(delta);
+    key.bucket = bpf_log2l(latency);
 
-    val = fshist.lookup_or_init(&key, &zero);
-    (*val)++;
-    start.delete(&key);
+    count = fs_latency_hist.lookup_or_init(&key, &zero);
+    (*count)++;
+    read_start.delete(&key);
     return 0;
 }
 """
@@ -129,7 +121,7 @@ signal.pause()
 # Print the histogram
 print("\nHistogram of latency requested in read() calls per fs:")
 
-histogram = b.get_table("fshist")
+histogram = b.get_table("fs_key")
 
 fs_hist = defaultdict(lambda: defaultdict(int))
 
