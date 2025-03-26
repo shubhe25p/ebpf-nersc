@@ -2,6 +2,34 @@ from __future__ import print_function
 from bcc import BPF
 from bcc.utils import printb
 from time import sleep
+import argparse
+import os
+from pathlib import Path
+
+def valid_library_path(value):
+    """Validates if the provided path exists and is a file"""
+    filepath = Path(value)
+    if not filepath.exists():
+        msg = f'Error! File not found: {value}'
+        raise argparse.ArgumentTypeError(msg)
+    elif not filepath.is_file():
+        msg = f'Error! Not a valid file: {value}'
+        raise argparse.ArgumentTypeError(msg)
+    else:
+        return str(filepath)
+
+parser = argparse.ArgumentParser(description="BPF program for tracing MPI_File_open")
+parser.add_argument('--libmpi', '-l', type=valid_library_path, 
+                      default="/usr/lib64/mpi/gcc/openmpi4/lib64/libmpi.so.40",
+                      help='Full path to the libmpi.so library (default: /usr/lib64/mpi/gcc/openmpi4/lib64/libmpi.so.40)')
+args = parser.parse_args()
+    
+    # Validate the default path if no custom path was provided
+try:
+    args.libmpi = valid_library_path(args.libmpi)
+except argparse.ArgumentTypeError as e:
+    print(e)
+    return 1
 
 # load BPF program
 b = BPF(text="""
@@ -32,9 +60,10 @@ int count(struct pt_regs *ctx) {
 
 
 
-b.attach_uprobe(name="/usr/lib64/mpi/gcc/openmpi4/lib64/libmpi.so.40", sym="MPI_File_open", fn_name="count")
-
+print(f"Using libmpi path: {args.libmpi}")
+b.attach_uprobe(name=args.libmpi, sym="MPI_File_open", fn_name="count")
 # header
+
 print("Tracing MPIIO open calls()... Hit Ctrl-C to end.")
 
 # sleep until Ctrl-C
