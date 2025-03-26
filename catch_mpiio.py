@@ -22,7 +22,7 @@ int count(struct pt_regs *ctx) {
     bpf_probe_read(&k.testFileName, sizeof(k.testFileName), (void *)PT_REGS_PARM2(ctx));
     k.fdmode = PT_REGS_PARM3(ctx);
     // could also use `counts.increment(key)`
-    val = counts.lookup_or_try_init(&key, &zero);
+    val = counts.lookup_or_try_init(&k, &zero);
     if (val) {
       (*val)++;
     }
