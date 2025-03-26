@@ -44,7 +44,7 @@ except KeyboardInterrupt:
     pass
 
 # print output
-print("%10s %5s %5s" % ("COUNT", "Testfile-name", "fdmode"))
+print("%10s %5s %15s" % ("COUNT", "Testfile-name", "fdmode"))
 counts = b.get_table("counts")
 for k, v in sorted(counts.items(), key=lambda counts: counts[1].value):
     print("%10d \"%s\" %12d" % (v.value, k.testFileName.decode('utf-8').encode('unicode_escape').decode('utf-8'), k.fdmode))
