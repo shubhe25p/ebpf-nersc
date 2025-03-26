@@ -29,7 +29,7 @@ try:
     args.libmpi = valid_library_path(args.libmpi)
 except argparse.ArgumentTypeError as e:
     print(e)
-    return 1
+    exit(1)
 
 # load BPF program
 b = BPF(text="""
