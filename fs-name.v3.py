@@ -16,7 +16,7 @@ bpf_text="""
 TRACEPOINT_PROBE(syscalls, sys_enter_read)
 {
     struct task_struct *task;
-    char fsname[32];
+    char fsname[8];
     struct qstr dname;
     
 
@@ -25,9 +25,9 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     // Read task->fs
     struct file *some_file = task->files->fdt->fd[args->fd];
 
-    int bs= some_file->f_inode->i_sb->s_type->fs_flags;
+    const char* name= some_file->f_inode->i_sb->s_type->name;
     // bpf_probe_read_kernel_str(&fsname, sizeof(fsname), name);
-    bpf_trace_printk("Process %d is using file system1: %lu\\n", task->pid, bs);
+    bpf_trace_printk("Process %d is using file system: %s\\n", task->pid, fsname);
     return 0;
 }
 """
