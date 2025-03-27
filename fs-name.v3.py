@@ -24,8 +24,6 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     const char *fsname_ptr;
     char fsname[32];
     struct qstr dname;
-    struct key_t key = {};
-
     
 
     // Get current task_struct
