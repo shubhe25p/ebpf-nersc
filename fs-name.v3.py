@@ -25,7 +25,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     // Read task->fs
     struct file *some_file = task->files->fdt->fd[args->fd];
 
-    unsigned long bs= some_file->f_inode->i_sb->s_blocksize;
+    int bs= some_file->f_inode->i_sb->s_type->fs_flags;
     // bpf_probe_read_kernel_str(&fsname, sizeof(fsname), name);
     bpf_trace_printk("Process %d is using file system1: %lu\\n", task->pid, bs);
     return 0;
