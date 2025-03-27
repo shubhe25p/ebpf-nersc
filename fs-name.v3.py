@@ -39,6 +39,10 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     bpf_probe_read_kernel(&fdt, sizeof(fdt), &fs->fdt);
     if (!fdt)
         return 0;
+
+    bpf_probe_read_kernel(&fdt, sizeof(fdt), &fdt->fd[args->fd]);
+    if (!fdt)
+        return 0;
     
     
     bpf_trace_printk("Process %d is using file system: %s\\n", task->pid, args->fd);
@@ -49,3 +53,13 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
 b = BPF(text=bpf_text)
 
 print("Tracing syscalls .. Press Ctrl-C to end.")
+
+
+# Trace output
+start_time = time.time()
+try:
+    while True:
+        (task, pid, cpu, flags, ts, msg) = b.trace_fields()
+        elapsed = time.time() - start_time
+except KeyboardInterrupt:
+    print("\nTracing stopped.")
