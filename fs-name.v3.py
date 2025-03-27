@@ -36,7 +36,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
 
     const char *name = some_file->f_path.mnt->mnt_root->d_name.name;
     bpf_probe_read_kernel_str(&fsname, sizeof(fsname), name);
-    bpf_trace_printk("Process %d is using file system: %lu\\n", task->pid, fsname);
+    bpf_trace_printk("Process %d is using file system: %s\\n", task->pid, fsname);
     return 0;
 }
 """
