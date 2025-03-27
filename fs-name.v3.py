@@ -16,18 +16,17 @@ bpf_text="""
 TRACEPOINT_PROBE(syscalls, sys_enter_read)
 {
     struct task_struct *task;
-    char fsname[8];
-    struct qstr dname;
-    
+    char fstype[32];
 
     // Get current task_struct
     task = (struct task_struct *)bpf_get_current_task();
     // Read task->fs
     struct file *some_file = task->files->fdt->fd[args->fd];
 
-    const char* name= some_file->f_inode->i_sb->s_type->name;
-    // bpf_probe_read_kernel_str(&fsname, sizeof(fsname), name);
-    bpf_trace_printk("Process %d is using file system: %s\\n", task->pid, fsname);
+    // Access the filesystem type name through the superblock
+    const char *type_name = some_file->f_inode->i_sb->s_type->name;
+    bpf_probe_read_kernel_str(&fstype, sizeof(fstype), type_name);
+    bpf_trace_printk("Process %d is using file system type: %s\\n", task->pid, fstype);
     return 0;
 }
 """
