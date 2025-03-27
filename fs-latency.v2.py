@@ -62,7 +62,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     {
         // Get current task_struct
         struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-        const unsigned char *fs_name = task->files->fdt->fd[args->fd]->f_path.mnt->mnt_root->d_name.name;
+        const unsigned char *fs_name = task->files->fdt->fd[args->fd]->f_inode->i_sb->s_type->name;
         bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fs_name);
         fd_fs_cache.update(&info, &key);
         u64 ts = bpf_ktime_get_ns();
@@ -80,6 +80,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
 TRACEPOINT_PROBE(syscalls, sys_exit_read) {
     u64 *start_ts, latency;
     u64 zero = 0, *count;
+    struct fs_key key = {};
     struct fd_info info = {};
     info.pid = bpf_get_current_pid_tgid();
     unsigned int* fdptr = pid_fd_cache.lookup(&info.pid);
