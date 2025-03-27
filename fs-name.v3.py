@@ -25,7 +25,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
 
     // Access the filesystem type name through the superblock
     const char *type_name = some_file->f_inode->i_sb->s_type->name;
-    bpf_probe_read_kernel_str(&fstype, sizeof(fstype), type_name);
+    bpf_probe_read_str(fstype, sizeof(fstype), type_name);
     bpf_trace_printk("Process %d is using file system type: %s\\n", task->pid, fstype);
     return 0;
 }
