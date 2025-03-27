@@ -51,7 +51,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     
     // read dentry qstr
     bpf_probe_read_kernel(&fsname_ptr, sizeof(fsname_ptr), &dname.name);
-    bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fsname_ptr);
+    bpf_probe_read_kernel_str(&fsname, sizeof(fsname), fsname_ptr);
     
     bpf_trace_printk("Process %d is using file system: %s\\n", task->pid, fsname);
     return 0;
