@@ -25,7 +25,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     // Read task->fs
     struct file *some_file = task->files->fdt->fd[args->fd];
 
-    const char *name = some_file->f_path.mnt->mnt_sb->s_type->name;
+    const char *name = some_file->f_path.mnt->mnt_sb->s_root->dname.name;
     bpf_probe_read_kernel_str(&fsname, sizeof(fsname), name);
     bpf_trace_printk("Process %d is using file system shubh: %s\\n", task->pid, fsname);
     return 0;
