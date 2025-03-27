@@ -41,7 +41,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
         return 0;
     
     
-    bpf_trace_printk("Process %d is using file system: %d\\n", task->pid, fdt->max_fds);
+    bpf_trace_printk("Process %d is using file system: %d\\n", task->pid, task->files->fdt->max_fds);
     return 0;
 }
 """
