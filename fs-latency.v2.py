@@ -58,15 +58,19 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     info.fd = args->fd;
     pid_fd_cache.update(&info.pid, &info.fd);
     struct fs_key *cached_key = fd_fs_cache.lookup(&info);
-    if(cached_key == NULL && (args->fd < task->files->fdt->max_fds))
+    if(cached_key == NULL)
     {
         // Get current task_struct
         struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+        if(args->fd < task->files->fdt->max_fds){
         const unsigned char *fs_name = task->files->fdt->fd[args->fd]->f_inode->i_sb->s_type->name;
         bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fs_name);
         fd_fs_cache.update(&info, &key);
         u64 ts = bpf_ktime_get_ns();
         read_start.update(&key, &ts);
+        }
+        else
+            return 0;
     }
     else
     {
