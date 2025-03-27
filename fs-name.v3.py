@@ -39,10 +39,6 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     bpf_probe_read_kernel(&fdt, sizeof(fdt), &fs->fdt);
     if (!fdt)
         return 0;
-
-    bpf_probe_read_kernel(&fdt, sizeof(fdt), &fdt->fd[args->fd]);
-    if (!fdt)
-        return 0;
     
     
     bpf_trace_printk("Process %d is using file system: %s\\n", task->pid, args->fd);
