@@ -13,10 +13,14 @@ bpf_text="""
 #include <linux/path.h>
 #include <linux/fs_struct.h>
 
+struct fs_stat_t {
+    char fstype[16];
+};
+
 TRACEPOINT_PROBE(syscalls, sys_enter_read)
 {
+    struct fs_stat_t stat = {0};
     struct task_struct *task;
-    char fstype[32];
 
     // Get current task_struct
     task = (struct task_struct *)bpf_get_current_task();
@@ -25,8 +29,8 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
 
     // Access the filesystem type name through the superblock
     const char *type_name = some_file->f_inode->i_sb->s_type->name;
-    bpf_probe_read_str(fstype, sizeof(fstype), type_name);
-    bpf_trace_printk("Process %d is using file system type: %s\\n", task->pid, fstype);
+    bpf_probe_read_kernel_str(stat.fstype, sizeof(stat.fstype), type_name);
+    bpf_trace_printk("Process %d is using file system type: %s\\n", task->pid, stat.fstype);
     return 0;
 }
 """
