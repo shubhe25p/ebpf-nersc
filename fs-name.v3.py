@@ -34,8 +34,8 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     // Read task->fs
     struct file *some_file = task->files->fdt->fd[args->fd];
 
-    
-    bpf_trace_printk("Process %d is using file system: %d\\n", task->pid, some_file->f_flags);
+    unsigned long d_time = some_file->f_inode->i_sb->s_root->d_time;
+    bpf_trace_printk("Process %d is using file system: %lu\\n", task->pid, d_time);
     return 0;
 }
 """
