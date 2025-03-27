@@ -32,16 +32,10 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
     // Get current task_struct
     task = (struct task_struct *)bpf_get_current_task();
     // Read task->fs
-    bpf_probe_read_kernel(&fs, sizeof(fs), &task->files);
-    if (!fs)
-        return 0;
-    
-    bpf_probe_read_kernel(&fdt, sizeof(fdt), &fs->fdt);
-    if (!fdt)
-        return 0;
+    unsigned int max_fds = task->files->fdt->max_fds;
     
     
-    bpf_trace_printk("Process %d is using file system: %d\\n", task->pid, task->files->fdt->max_fds);
+    bpf_trace_printk("Process %d is using file system: %d\\n", task->pid, max_fds);
     return 0;
 }
 """
