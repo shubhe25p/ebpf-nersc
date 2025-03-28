@@ -33,10 +33,10 @@ bpf_text = """
 #include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/dcache.h>
-#include <bpf/bpf_helpers.h>
+// #include <bpf/bpf_helpers.h>
 
-void bpf_rcu_read_lock(void) __ksym;
-void bpf_rcu_read_unlock(void) __ksym;
+// void bpf_rcu_read_lock(void) __ksym;
+// void bpf_rcu_read_unlock(void) __ksym;
 
 struct fs_key {
     char fsname[32];
@@ -73,9 +73,9 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
         struct task_struct *task = (struct task_struct *)bpf_get_current_task();
         struct files_struct *files = task->files;
         
-        bpf_rcu_read_lock();
+       // bpf_rcu_read_lock();
         fd = files->fdt->fd[args->fd];
-        bpf_rcu_read_unlock();
+       // bpf_rcu_read_unlock();
 
         const unsigned char *fs_name = fd->f_inode->i_sb->s_type->name;
         bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fs_name);
@@ -129,13 +129,8 @@ TRACEPOINT_PROBE(syscalls, sys_exit_read) {
 label = "usecs"
 
 # load BPF program
-b = BPF(text=bpf_text, cflags=[
-        "-I/usr/include/bpf",
-        "-I/usr/include/x86_64-linux-gnu",
-        "-I/usr/include/linux",
-    ],
-    debug=1,
-    )
+b = BPF(text=bpf_text)
+
 
 print("Tracing FileSystem I/O... Hit Ctrl-C to end.")
 
