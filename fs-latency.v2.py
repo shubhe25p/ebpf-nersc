@@ -33,10 +33,9 @@ bpf_text = """
 #include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/dcache.h>
-#include <bpf/bpf_helpers.h>
 
-void bpf_rcu_read_lock(void) __ksym;
-void bpf_rcu_read_unlock(void) __ksym;
+void bpf_rcu_read_lock(void) __attribute__((section(".ksyms")));
+void bpf_rcu_read_unlock(void) __attribute__((section(".ksyms")));
 
 struct fs_key {
     char fsname[32];
@@ -72,7 +71,7 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
         // Get current task_struct
         struct task_struct *task = (struct task_struct *)bpf_get_current_task();
         struct files_struct *files = task->files;
-        
+
         bpf_rcu_read_lock();
         fd = files->fdt->fd[args->fd];
         bpf_rcu_read_unlock();
