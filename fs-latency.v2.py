@@ -53,6 +53,8 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
 {   
     char comm[TASK_COMM_LEN];
     bpf_get_current_comm(&comm, sizeof(comm));
+    if(!(comm[0]=='i' && comm[1]=='o' && comm[2]=='r'))
+        return 0;
     struct fs_key key = {};
     struct fd_info info = {};
     info.pid = bpf_get_current_pid_tgid();
