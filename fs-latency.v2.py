@@ -51,9 +51,7 @@ BPF_HASH(pid_fd_cache, u32, unsigned int);
 BPF_HASH(fd_fs_cache, struct fd_info, struct fs_key);
 
 TRACEPOINT_PROBE(syscalls, sys_enter_read)
-{
-    
-    
+{   
     struct fs_key key = {};
     struct fd_info info = {};
     bpf_get_current_comm(&info.comm, sizeof(info.comm));
@@ -67,7 +65,6 @@ TRACEPOINT_PROBE(syscalls, sys_enter_read)
         struct task_struct *task = (struct task_struct *)bpf_get_current_task();
         const unsigned char *fs_name = task->files->fdt->fd[args->fd]->f_inode->i_sb->s_type->name;
         bpf_probe_read_kernel_str(&key.fsname, sizeof(key.fsname), fs_name);
-        bpf_trace_printk("fs: %s\\n", key.fsname);
         fd_fs_cache.update(&info, &key);
         u64 ts = bpf_ktime_get_ns();
         read_start.update(&key, &ts);
@@ -109,6 +106,8 @@ TRACEPOINT_PROBE(syscalls, sys_exit_read) {
     count = fs_latency_hist.lookup_or_init(cached_key, &zero);
     (*count)++;
     read_start.delete(cached_key);
+    pid_fd_cache.delete(&info.pid);
+    fd_fs_cache.delete(&info);
     return 0;
 }
 """
