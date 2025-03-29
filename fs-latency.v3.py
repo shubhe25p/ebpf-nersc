@@ -28,7 +28,7 @@ def generate_comm_string():
     # Loop through each character in the input string and its index
     for i, char in enumerate(comm):
         # Append the formatted string to the list
-        comm_parts.append(f"comm[{i}] == {char}")
+        comm_parts.append(f"fs_info.comm[{i}] == {char}")
     
     # Join all parts with " && " and return the result
     return " && ".join(comm_parts)
