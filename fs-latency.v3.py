@@ -64,9 +64,9 @@ int trace_read_entry(struct pt_regs *ctx, struct file *file,
     return trace_rw_entry(ctx, file, buf, count);
 }
 
-static int trace_read_return(struct pt_regs *ctx)
+int trace_read_return(struct pt_regs *ctx)
 {
-    
+    u64 zero = 0, *count;
     u32 pid = bpf_get_current_pid_tgid();
     struct fs_stat_t *fs_info = read_start.lookup(&pid);
     if (fs_info == 0)
