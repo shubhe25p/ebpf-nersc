@@ -1,5 +1,6 @@
 from bcc import BPF
 import signal
+from time import sleep, strftime
 
 bpf_text = """
 #include <uapi/linux/ptrace.h>
