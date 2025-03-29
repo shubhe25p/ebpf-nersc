@@ -44,11 +44,12 @@ bpf_text = """
 #include <linux/mount.h>
 
 struct fs_stat_t {
-    u32 pid;
-    u32 sz;
     u64 bucket;
     u64 ts;
     u64 delta_us;
+    u64 throughput;
+    u32 pid;
+    u32 sz;
     char fstype[32];
     char name[DNAME_INLINE_LEN];
     char comm[TASK_COMM_LEN];
@@ -120,6 +121,7 @@ int trace_read_return(struct pt_regs *ctx)
     latency /= 1000;  // convert to microseconds
     fs_info->bucket = bpf_log2l(latency);
     fs_info->delta_us = latency;
+    fs_info->throughput = (fs_info->sz/latency);
     count = fs_latency_hist.lookup_or_init(fs_info, &zero);
     (*count)++;
     read_start.delete(&pid);
