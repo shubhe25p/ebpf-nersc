@@ -25,7 +25,7 @@ struct fs_stat_t {
 
 BPF_HASH(read_start, pid_t, struct fs_stat_t);
 BPF_HASH(fs_latency_hist, struct fs_stat_t, u64);
-//BPF_PERF_OUTPUT(events);
+// BPF_PERF_OUTPUT(events);
 
 static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     char __user *buf, size_t count)
@@ -83,7 +83,7 @@ int trace_read_return(struct pt_regs *ctx)
     count = fs_latency_hist.lookup_or_init(fs_info, &zero);
     (*count)++;
     read_start.delete(&pid);
-    events.perf_submit(ctx, fs_info, sizeof(*fs_info));
+    // events.perf_submit(ctx, fs_info, sizeof(*fs_info));
     return 0;   
 }
 
