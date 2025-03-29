@@ -1,5 +1,7 @@
 from bcc import BPF
-import time
+import signal
+from collections import defaultdict
+
 
 bpf_text = """
 #include <uapi/linux/ptrace.h>
@@ -23,7 +25,7 @@ struct fs_stat_t {
 
 BPF_HASH(read_start, pid_t, struct fs_stat_t);
 BPF_HASH(fs_latency_hist, struct fs_stat_t, u64);
-BPF_PERF_OUTPUT(events);
+//BPF_PERF_OUTPUT(events);
 
 static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     char __user *buf, size_t count)
@@ -101,24 +103,73 @@ print("Tracing FileSystem I/O... Hit Ctrl-C to end.")
 
 
 print("\nHistogram of latency requested in read() calls per fs:")
-print("%-8s %-14s %-6s %1s %-7s %7s %s" % ("TIME(s)", "COMM", "TID", "FSTYPE",
-    "BYTES", "LAT(ms)", "FILENAME"))
+
+
+# print("%-8s %-14s %-6s %1s %-7s %7s %s" % ("TIME(s)", "COMM", "TID", "FSTYPE",
+#     "BYTES", "LAT(ms)", "FILENAME"))
     
-start_ts = time.time()
-def print_event(cpu, data, size):
-    event = b["events"].event(data)
+# start_ts = time.time()
+# def print_event(cpu, data, size):
+#     event = b["events"].event(data)
 
-    ms = float(event.delta_us) / 1000
-    fname = event.name.decode('utf-8', 'replace')
-    fstype = event.fstype.decode('utf-8', 'replace')
+#     ms = float(event.delta_us) / 1000
+#     fname = event.name.decode('utf-8', 'replace')
+#     fstype = event.fstype.decode('utf-8', 'replace')
 
-    print("%-8.3f %-14.14s %-6s %1s %-7s %7.2f %s" % (
-        time.time() - start_ts, event.comm.decode('utf-8', 'replace'),
-        event.pid, fstype, event.bucket, ms, fname))
+#     print("%-8.3f %-14.14s %-6s %1s %-7s %7.2f %s" % (
+#         time.time() - start_ts, event.comm.decode('utf-8', 'replace'),
+#         event.pid, fstype, event.bucket, ms, fname))
 
-b["events"].open_perf_buffer(print_event)
-while 1:
-    try:
-        b.perf_buffer_poll()
-    except KeyboardInterrupt:
-        exit()
+# b["events"].open_perf_buffer(print_event)
+# while 1:
+#     try:
+#         b.perf_buffer_poll()
+#     except KeyboardInterrupt:
+#         exit()
+
+def signal_ignore(signal, frame):
+    print()
+
+signal.signal(signal.SIGINT, signal_ignore)
+
+# Wait until Ctrl+C
+signal.pause()
+
+# Print the histogram
+print("\nHistogram of latency requested in read() calls per fs:")
+
+histogram = b.get_table("fs_latency_hist")
+
+fs_hist = defaultdict(lambda: defaultdict(int))
+
+for k, v in histogram.items():
+    fsname = k.fstype
+    bucket = k.bucket
+    count = v.value
+    fs_hist[fsname][bucket] += count
+
+for fs, buckets in fs_hist.items():
+    print(f"\nFile System {fs}:")
+
+
+    total_count = sum(buckets.values())
+    print(f"Total Reads: {total_count}")
+    
+    # Prepare data for printing
+    sorted_buckets = sorted(buckets.items())
+    max_bucket = max(buckets.keys())
+    
+    # Print the histogram header
+    print("       usecs      : count     distribution")
+
+    # Calculate the maximum count for scaling the histogram bars
+    max_count = max(buckets.values())
+    width = 40  # Adjust the width of the histogram bars as needed
+
+    for b, c in sorted_buckets:
+        # Compute the bucket range based on log2 boundaries
+        low = (1 << b) if b > 0 else 0
+        high = (1 << (b + 1)) - 1
+        bar_len = int(c * width / max_count) if max_count > 0 else 0
+        bar = '*' * bar_len
+        print(f"{low:>10} -> {high:<10} : {c:<8} |{bar}")
