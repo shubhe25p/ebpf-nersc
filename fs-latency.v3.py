@@ -1,5 +1,4 @@
 from bcc import BPF
-import signal
 import time
 
 bpf_text = """
@@ -100,13 +99,6 @@ except Exception:
 
 print("Tracing FileSystem I/O... Hit Ctrl-C to end.")
 
-def signal_ignore(signal, frame):
-    print()
-
-signal.signal(signal.SIGINT, signal_ignore)
-
-# Wait until Ctrl+C
-signal.pause()
 
 print("\nHistogram of latency requested in read() calls per fs:")
 print("%-8s %-14s %-6s %1s %-7s %7s %s" % ("TIME(s)", "COMM", "TID", "FSTYPE",
