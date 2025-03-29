@@ -114,7 +114,7 @@ print("%-8s %-14s %-6s %1s %-7s %7s %s" % ("TIME(s)", "COMM", "TID", "FSTYPE",
     
 start_ts = time.time()
 def print_event(cpu, data, size):
-    event = b["events"].event(fs_info)
+    event = b["events"].event(data)
 
     ms = float(event.delta_us) / 1000
     fname = event.name.decode('utf-8', 'replace')
