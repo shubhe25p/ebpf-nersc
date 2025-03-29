@@ -114,9 +114,9 @@ def print_event(cpu, data, size):
 
     print("%-8.3f %-14.14s %-6s %1s %-7s %7.2f %s" % (
         time.time() - start_ts, event.comm.decode('utf-8', 'replace'),
-        event.pid, fstype, event.sz, ms, fname))
+        event.pid, fstype, event.bucket, ms, fname))
 
-b["events"].open_perf_buffer(print_event, page_cnt=64)
+b["events"].open_perf_buffer(print_event)
 while 1:
     try:
         b.perf_buffer_poll()
