@@ -1,4 +1,5 @@
 from bcc import BPF
+import signal
 
 bpf_text = """
 #include <uapi/linux/ptrace.h>
