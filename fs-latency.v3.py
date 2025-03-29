@@ -1,6 +1,39 @@
 from bcc import BPF
 import signal
 from collections import defaultdict
+import argparse
+
+examples = """examples:
+    ./fs_read_latency             # trace sync file I/O per filesystem (default)
+    ./fs_read_latency -n ior      # trace processes named 'ior'
+    ./fs_read_latency -p 42       # trace PID 42 only
+"""
+parser = argparse.ArgumentParser(
+    description="Trace sync file I/O synchronous file reads per FS",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog=examples)
+parser.add_argument("-p", "--pid", type=int, metavar="PID", dest="tgid",
+    help="trace this PID only")
+parser.add_argument("-n", "--name", metavar="COMM", dest="comm",
+    help="trace this proc only")
+
+args = parser.parse_args()
+tgid = args.tgid
+comm = args.comm
+
+def generate_comm_string():
+    # Initialize an empty list to store the formatted parts
+    comm_parts = []
+    
+    # Loop through each character in the input string and its index
+    for i, char in enumerate(comm):
+        # Append the formatted string to the list
+        comm_parts.append(f"comm[{i}] == {char}")
+    
+    # Join all parts with " && " and return the result
+    return " && ".join(comm_parts)
+
+
 
 
 bpf_text = """
@@ -31,6 +64,9 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     char __user *buf, size_t count)
 {
     u32 tgid = bpf_get_current_pid_tgid() >> 32;
+    if (TGID_FILTER)
+        return 0;
+
     u32 pid = bpf_get_current_pid_tgid();
 
     // skip I/O lacking a filename
@@ -41,6 +77,10 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
 
     // store size and timestamp by pid
     struct fs_stat_t fs_info = {};
+    bpf_get_current_comm(&fs_info.comm, sizeof(fs_info.comm));
+    if (COMM_FILTER)
+        return 0;
+
     fs_info.pid=pid;
     fs_info.sz=count;
 
@@ -51,7 +91,7 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     // grab file name
     struct qstr d_name = de->d_name;
     bpf_probe_read_kernel(&fs_info.name, sizeof(fs_info.name), d_name.name);
-    bpf_get_current_comm(&fs_info.comm, sizeof(fs_info.comm));
+    
 
     fs_info.ts = bpf_ktime_get_ns();
     read_start.update(&pid, &fs_info);
@@ -89,6 +129,17 @@ int trace_read_return(struct pt_regs *ctx)
 
 
 """
+
+if args.tgid:
+    bpf_text = bpf_text.replace('TGID_FILTER', 'tgid != %d' % tgid)
+else:
+    bpf_text = bpf_text.replace('TGID_FILTER', '0')
+if args.comm:
+    target_str = generate_comm_string()
+    bpf_text = bpf_text.replace('COMM_FILTER', target_str)
+else:
+    bpf_text = bpf_text.replace('COMM_FILTER', '0')
+
 
 b = BPF(text=bpf_text)
 try:
