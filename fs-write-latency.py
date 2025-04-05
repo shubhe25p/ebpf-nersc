@@ -4,9 +4,9 @@ from collections import defaultdict
 import argparse
 
 examples = """examples:
-    ./fs_read_latency             # trace sync file I/O per filesystem (default)
-    ./fs_read_latency -n ior      # trace processes named 'ior'
-    ./fs_read_latency -p 42       # trace PID 42 only
+    ./fs-write-latency             # trace sync file I/O per filesystem (default)
+    ./fs-write-latency -n ior      # trace processes named 'ior'
+    ./fs-write-latency -p 42       # trace PID 42 only
 """
 parser = argparse.ArgumentParser(
     description="Trace sync file I/O synchronous file write per FS",
@@ -57,7 +57,7 @@ struct fs_stat_t {
 
 
 
-BPF_HASH(read_start, pid_t, struct fs_stat_t);
+BPF_HASH(write_start, pid_t, struct fs_stat_t);
 BPF_HASH(fs_latency_hist, struct fs_stat_t, u64);
 // BPF_PERF_OUTPUT(events);
 
@@ -95,11 +95,11 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     
 
     fs_info.ts = bpf_ktime_get_ns();
-    read_start.update(&pid, &fs_info);
+    write_start.update(&pid, &fs_info);
     return 0;
 }
 
-int trace_read_entry(struct pt_regs *ctx, struct file *file,
+int trace_write_entry(struct pt_regs *ctx, struct file *file,
     char __user *buf, size_t count)
 {
    
@@ -110,11 +110,11 @@ int trace_read_entry(struct pt_regs *ctx, struct file *file,
     return trace_rw_entry(ctx, file, buf, count);
 }
 
-int trace_read_return(struct pt_regs *ctx)
+int trace_write_return(struct pt_regs *ctx)
 {
     u64 zero = 0, *count;
     u32 pid = bpf_get_current_pid_tgid();
-    struct fs_stat_t *fs_info = read_start.lookup(&pid);
+    struct fs_stat_t *fs_info = write_start.lookup(&pid);
     if (fs_info == 0)
         return 0;
     
@@ -126,7 +126,7 @@ int trace_read_return(struct pt_regs *ctx)
     fs_info->throughput = (fs_info->sz/latency);
     count = fs_latency_hist.lookup_or_init(fs_info, &zero);
     (*count)++;
-    read_start.delete(&pid);
+    write_start.delete(&pid);
     // events.perf_submit(ctx, fs_info, sizeof(*fs_info));
     return 0;   
 }
@@ -147,17 +147,17 @@ else:
 
 b = BPF(text=bpf_text)
 try:
-    b.attach_kprobe(event="__vfs_write", fn_name="trace_read_entry")
-    b.attach_kretprobe(event="__vfs_write", fn_name="trace_read_return")
+    b.attach_kprobe(event="__vfs_write", fn_name="trace_write_entry")
+    b.attach_kretprobe(event="__vfs_write", fn_name="trace_write_return")
 except Exception:
-    print('Current kernel does not have __vfs_read, try vfs_read instead')
-    b.attach_kprobe(event="vfs_write", fn_name="trace_read_entry")
-    b.attach_kretprobe(event="vfs_write", fn_name="trace_read_return")
+    print('Current kernel does not have __vfs_write, try vfs_write instead')
+    b.attach_kprobe(event="vfs_write", fn_name="trace_write_entry")
+    b.attach_kretprobe(event="vfs_write", fn_name="trace_write_return")
 
 print("Tracing FileSystem I/O... Hit Ctrl-C to end.")
 
 
-print("\nHistogram of latency requested in read() calls per fs:")
+print("\nHistogram of latency requested in write() calls per fs:")
 
 
 # print("%-8s %-14s %-6s %1s %-7s %7s %s" % ("TIME(s)", "COMM", "TID", "FSTYPE",
@@ -190,8 +190,6 @@ signal.signal(signal.SIGINT, signal_ignore)
 # Wait until Ctrl+C
 signal.pause()
 
-# Print the histogram
-print("\nHistogram of latency requested in read() calls per fs:")
 
 histogram = b.get_table("fs_latency_hist")
 
@@ -208,7 +206,7 @@ for fs, buckets in fs_hist.items():
 
 
     total_count = sum(buckets.values())
-    print(f"Total Reads: {total_count}")
+    print(f"Total Writes: {total_count}")
     
     # Prepare data for printing
     sorted_buckets = sorted(buckets.items())
