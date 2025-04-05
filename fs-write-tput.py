@@ -213,7 +213,7 @@ for fs, buckets in fs_hist.items():
     max_bucket = max(buckets.keys())
     
     # Print the histogram header
-    print("       usecs      : count     distribution")
+    print("       bytes/usec      : count     distribution")
 
     # Calculate the maximum count for scaling the histogram bars
     max_count = max(buckets.values())
