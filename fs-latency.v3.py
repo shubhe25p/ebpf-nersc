@@ -198,6 +198,7 @@ print("\nHistogram of latency requested in read() calls per fs:")
 histogram = b.get_table("fs_latency_hist")
 
 fs_hist = defaultdict(lambda: defaultdict(int))
+msrc_fstype_map ={}
 
 for k, v in histogram.items():
     fstype = k.fstype
@@ -205,9 +206,11 @@ for k, v in histogram.items():
     msrc = k.msrc
     count = v.value
     fs_hist[msrc][bucket] += count
+    if msrc not in msrc_fstype_map:
+        msrc_fstype_map[msrc] = fstype
 
-for fstype, buckets, msrc in fs_hist.items():
-    print(f"\nMount Source: File System type {msrc}:{fstype}")
+for msrc, bucket in fs_hist.items():
+    print(f"\nMount Source: File System type {msrc}:{msrc_fstype_map[msrc]}")
 
 
     total_count = sum(buckets.values())
