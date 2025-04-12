@@ -209,7 +209,7 @@ for k, v in histogram.items():
     if msrc not in msrc_fstype_map:
         msrc_fstype_map[msrc] = fstype
 
-for msrc, bucket in fs_hist.items():
+for msrc, buckets in fs_hist.items():
     print(f"\nMount Source: File System type {msrc}:{msrc_fstype_map[msrc]}")
 
 
