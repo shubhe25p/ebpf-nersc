@@ -210,7 +210,7 @@ for k, v in histogram.items():
         msrc_fstype_map[msrc] = fstype
 
 for msrc, buckets in fs_hist.items():
-    print(f"\nMount Source: File System type {msrc}:{msrc_fstype_map[msrc]}")
+    print(f"\n {msrc}:{msrc_fstype_map[msrc]}")
 
 
     total_count = sum(buckets.values())
