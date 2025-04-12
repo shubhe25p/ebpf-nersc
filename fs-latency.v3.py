@@ -50,7 +50,8 @@ struct fs_stat_t {
     u64 throughput;
     u32 pid;
     u32 sz;
-    char fstype[32];
+    char fstype[16]; /* arbitrary choice for file system type, no fs would have this greater than 16 chars */
+    char msrc[16];   /* arbitrary choice for mount-source, makes no sense */
     char name[DNAME_INLINE_LEN];
     char comm[TASK_COMM_LEN];
 };
@@ -88,6 +89,9 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     // grab file system type
     const char* fstype_name = file->f_inode->i_sb->s_type->name;
     bpf_probe_read_kernel(&fs_info.fstype, sizeof(fs_info.fstype), fstype_name);
+
+    const char* msrc = file->f_inode->i_sb->s_id;
+    bpf_probe_read_kernel(&fs_info.msrc, sizeof(fs_info.msrc), msrc);
 
     // grab file name
     struct qstr d_name = de->d_name;
@@ -196,13 +200,14 @@ histogram = b.get_table("fs_latency_hist")
 fs_hist = defaultdict(lambda: defaultdict(int))
 
 for k, v in histogram.items():
-    fsname = k.fstype
+    fstype = k.fstype
     bucket = k.bucket
+    msrc = k.msrc
     count = v.value
     fs_hist[fsname][bucket] += count
 
-for fs, buckets in fs_hist.items():
-    print(f"\nFile System {fs}:")
+for fs, buckets, msrc in fs_hist.items():
+    print(f"\nMount Source: File System type {msrc}:{fs}")
 
 
     total_count = sum(buckets.values())
