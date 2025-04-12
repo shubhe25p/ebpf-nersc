@@ -204,10 +204,10 @@ for k, v in histogram.items():
     bucket = k.bucket
     msrc = k.msrc
     count = v.value
-    fs_hist[fsname][bucket] += count
+    fs_hist[msrc][bucket] += count
 
-for fs, buckets, msrc in fs_hist.items():
-    print(f"\nMount Source: File System type {msrc}:{fs}")
+for fstype, buckets, msrc in fs_hist.items():
+    print(f"\nMount Source: File System type {msrc}:{fstype}")
 
 
     total_count = sum(buckets.values())
