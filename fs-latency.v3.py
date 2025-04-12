@@ -192,9 +192,6 @@ signal.signal(signal.SIGINT, signal_ignore)
 # Wait until Ctrl+C
 signal.pause()
 
-# Print the histogram
-print("\nHistogram of latency requested in read() calls per fs:")
-
 histogram = b.get_table("fs_latency_hist")
 
 fs_hist = defaultdict(lambda: defaultdict(int))
