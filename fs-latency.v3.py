@@ -44,6 +44,11 @@ bpf_text = """
 #include <linux/mount.h>
 #include <linux/stddef.h>
 
+struct mount{
+    struct vfsmount mnt;
+    const char *mnt_devname;
+};
+
 struct fs_stat_t {
     u64 bucket;
     u64 ts;
