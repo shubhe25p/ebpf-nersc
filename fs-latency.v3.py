@@ -42,12 +42,15 @@ bpf_text = """
 #include <linux/fs.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
-#include <linux/stddef.h>
 
+struct mount{
+    struct vfsmount mnt;
+    const char *mnt_devname;
+};
 #define offsetof(TYPE, MEMBER) ((size_t)&((TYPE *)0)->MEMBER)
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr) - offsetof(type, member)))
-
+    
 struct fs_stat_t {
     u64 bucket;
     u64 ts;
