@@ -54,7 +54,7 @@ struct fs_stat_t {
     char msrc[16];   /* arbitrary choice for mount-source, makes no sense */
     char str1[16];
     char str2[DNAME_INLINE_LEN];
-    char str3[16];
+    char str3[DNAME_INLINE_LEN];
     char str4[16];
     char name[DNAME_INLINE_LEN];
     char comm[TASK_COMM_LEN];
@@ -105,7 +105,8 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
 
     bpf_probe_read_kernel(&fs_info.str1, sizeof(fs_info.str1), de->d_name.name);
 
-    bpf_probe_read_kernel(&fs_info.str3, sizeof(fs_info.str3), file->f_path.dentry->d_name.name);
+    de = file->f_path.dentry;
+    bpf_probe_read_kernel(&fs_info.str3, sizeof(fs_info.str3), de->d_name.name);
     
     // grab file name
     struct qstr d_name = de->d_name;
