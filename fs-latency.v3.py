@@ -108,11 +108,8 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
 
     bpf_probe_read_kernel(&fs_info.str1, sizeof(fs_info.str1), de->d_name.name);
 
-    //file->f_path.mnt->mnt_root
-    //file->f_path.mnt->mnt_sb (seems like a circular reference)
-
-    //file->f_path.dentry->
-
+    struct vfsmount *vmnt = file->f_path.mnt->mnt_root;
+    struct mount* mnt = container_of(vmnt, struct mount, struct vfsmount);
 
     // grab file name
     struct qstr d_name = de->d_name;
