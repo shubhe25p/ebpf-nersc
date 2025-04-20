@@ -1,86 +1,86 @@
 #!/usr/bin/env bash
-# ior_benchmark_quiet.sh
-# Runs IOR baseline + three Python monitors, printing only essential info.
-# On any failure you’ll see:  "Error on line <n>: <command>"
+##############################################################################
+# ior_benchmark.sh  —  Quiet but informative IOR benchmark runner
+##############################################################################
+
+set -euo pipefail
+trap 'echo "ERROR on line $LINENO: $BASH_COMMAND" >&2' ERR
 
 ##############################################################################
-# 0. Strict error handling with detailed error trap
+# STEP 1/6 : Environment
 ##############################################################################
-set -euo pipefail              # stop on first error / unset var / pipe failure
-trap 'echo "Error on line $LINENO: $BASH_COMMAND" >&2' ERR
+echo "STEP 1/6 : Setting environment …"
 
-##############################################################################
-# 1. Environment
-##############################################################################
 export LD_LIBRARY_PATH=/usr/lib64/mpi/gcc/openmpi4/lib64:${LD_LIBRARY_PATH:-}
 export PATH=/usr/lib64/mpi/gcc/openmpi4/bin:$HOME/ior-4.0.0/src:$HOME/ebpf-nersc:${PATH}
 
-##############################################################################
-# 2. Locate required commands
-##############################################################################
+# locate required commands
 command -v mpirun >/dev/null
 command -v ior    >/dev/null
+sudo -n true 2>/dev/null || { echo "sudo needs a password; run 'sudo true' first." >&2; exit 1; }
 
-for py in catch_mpiio.py fs-latency.v3.py fs-write-latency.py; do
-    [[ -f $py ]]
-done
+MONITORS=(catch_mpiio.py fs-latency.v3.py fs-write-latency.py)
+for py in "${MONITORS[@]}"; do [[ -f $py ]]; done
 
 IOR_CMD="mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F"
 
 ##############################################################################
-# 3. Helper: run IOR 5× and return average seconds (silently)
-##############################################################################
-##############################################################################
-# Helper: run IOR 5× → average seconds
-#   • prints nothing on success except the final average
-#   • on ANY IOR error, shows full output then aborts
+# helper: run IOR 5×, return average seconds (date‑based timing; no GNU time)
 ##############################################################################
 avg_ior() {
-    local total=0
+    local total=0                              # running sum (float via awk)
     for n in {1..5}; do
-        tmp=$(mktemp)
-        # Run IOR; GNU time writes elapsed seconds to stdout
-        if ! dur=$(time -f "%e" $IOR_CMD 1>"$tmp" 2>&1); then
+        tmp=$(mktemp)                          # capture output for diagnostics
+        start=$(date +%s.%N)
+        if ! $IOR_CMD >"$tmp" 2>&1; then
             echo "IOR run $n failed — full output:" >&2
             cat "$tmp" >&2
             rm -f "$tmp"
-            return 1           # triggers trap and stops the script
+            return 1                           # triggers trap → abort script
         fi
+        end=$(date +%s.%N)
         rm -f "$tmp"
-        total=$(awk -v a="$total" -v b="$dur" 'BEGIN{print a+b}')
+        dur=$(awk -v s="$start" -v e="$end" 'BEGIN{print e-s}')
+        total=$(awk -v t="$total" -v d="$dur" 'BEGIN{print t+d}')
     done
     awk -v s="$total" 'BEGIN{printf "%.3f", s/5}'
 }
 
-
 ##############################################################################
-# 4. Warm‑up (no output)
+# STEP 2/6 : Warm‑up (no output)
 ##############################################################################
+echo "STEP 2/6 : Warm‑up (5 silent IOR runs) …"
 for _ in {1..5}; do $IOR_CMD >/dev/null; done
 
 ##############################################################################
-# 5. Baseline
+# STEP 3/6 : Baseline measurement
 ##############################################################################
-echo "Measuring baseline…"
+echo "STEP 3/6 : Measuring baseline …"
 baseline_time=$(avg_ior)
 echo "baseline_time=${baseline_time}s"
 
 ##############################################################################
-# 6. Loop through monitors
+# STEP 4/6‑6/6 : Loop through monitors
 ##############################################################################
-for py in catch_mpiio.py fs-latency.v3.py fs-write-latency.py; do
+step=4
+for py in "${MONITORS[@]}"; do
+    echo "STEP ${step}/6 : Running ${py} monitor"
     ts=$(date +%Y%m%d_%H%M%S)
     log="${py%.*}_out.${ts}"
 
-    echo "Running ${py} (logging → ${log})"
+    echo "  → starting with sudo (log → ${log})"
     sudo python3 "$py" >"$log" 2>&1 &
     pid=$!
 
     avg=$(avg_ior)
-    echo "${py%.*}_ior_time=${avg}s"
+    echo "  → ${py%.*}_ior_time=${avg}s"
 
-    kill -INT "$pid"
+    echo "  → sending Ctrl‑C to ${py} (PID ${pid})"
+    sudo kill -INT "$pid"
     wait "$pid" 2>/dev/null || true
+    echo "  → ${py} stopped; output saved in ${log}"
+    echo
+    step=$((step+1))
 done
 
-echo "All done."
+echo "All DONE ✔"
