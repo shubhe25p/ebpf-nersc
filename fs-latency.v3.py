@@ -102,7 +102,7 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     bpf_probe_read_kernel(&fs_info.msrc, sizeof(fs_info.msrc), msrc);
     
 
-    struct dentry* de = file->f_inode->i_sb->s_root;
+    de = file->f_inode->i_sb->s_root;
     bpf_probe_read_kernel(&fs_info.str2, sizeof(fs_info.str2), de->d_iname);
 
     bpf_probe_read_kernel(&fs_info.str1, sizeof(fs_info.str1), de->d_name.name);
