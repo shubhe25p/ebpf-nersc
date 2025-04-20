@@ -22,7 +22,7 @@ export PATH="$HOME/ior-4.0.0/src:$HOME/ebpf-nersc:${PATH}"
 ##############################################################################
 command -v mpirun   >/dev/null
 command -v ior      >/dev/null
-command -v /usr/bin/time >/dev/null
+command -v time >/dev/null
 for py in catch_mpiio.py fs-latency.v3.py fs-write-latency.py; do
     [[ -f $py ]]
 done
@@ -35,7 +35,7 @@ avg_ior() {
     for i in {1..5}; do
         echo "---- IOR run $i ----"
         # /usr/bin/time prints elapsed seconds (%e)
-        local dur=$(/usr/bin/time -f "%e" mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F \
+        local dur=$(time -f "%e" mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F \
                     1>/dev/null 2>&1 | tee /dev/fd/2)
         echo "elapsed=${dur}s"
         total=$(awk -v a="$total" -v b="$dur" 'BEGIN{print a+b}')
