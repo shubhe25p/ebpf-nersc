@@ -42,14 +42,6 @@ bpf_text = """
 #include <linux/fs.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
-
-struct mount{
-    struct vfsmount mnt;
-    const char *mnt_devname;
-};
-#define offsetof(TYPE, MEMBER) ((size_t)&((TYPE *)0)->MEMBER)
-#define container_of(ptr, type, member) \
-    ((type *)((char *)(ptr) - offsetof(type, member)))
     
 struct fs_stat_t {
     u64 bucket;
@@ -113,9 +105,7 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
 
     bpf_probe_read_kernel(&fs_info.str1, sizeof(fs_info.str1), de->d_name.name);
 
-    struct vfsmount *vmnt = file->f_path.mnt;
-    struct mount* mnt = container_of(vmnt, struct mount, mnt);
-    bpf_probe_read_kernel(&fs_info.str3, sizeof(fs_info.str3), mnt->mnt_devname);
+    bpf_probe_read_kernel(&fs_info.str3, sizeof(fs_info.str3), file->f_path.dentry->d_name.name);
     
     // grab file name
     struct qstr d_name = de->d_name;
