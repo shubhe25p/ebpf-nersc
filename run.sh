@@ -21,9 +21,6 @@ export PATH=/usr/lib64/mpi/gcc/openmpi4/bin:$HOME/ior-4.0.0/src:$HOME/ebpf-nersc
 command -v mpirun >/dev/null
 command -v ior    >/dev/null
 
-# Find a GNU “time” that supports -f '%e'
-TIME_CMD=time
-
 for py in catch_mpiio.py fs-latency.v3.py fs-write-latency.py; do
     [[ -f $py ]]
 done
@@ -43,7 +40,7 @@ avg_ior() {
     for n in {1..5}; do
         tmp=$(mktemp)
         # Run IOR; GNU time writes elapsed seconds to stdout
-        if ! dur=$("$TIME_CMD" -f "%e" $IOR_CMD 1>"$tmp" 2>&1); then
+        if ! dur=$(time -f "%e" $IOR_CMD 1>"$tmp" 2>&1); then
             echo "IOR run $n failed — full output:" >&2
             cat "$tmp" >&2
             rm -f "$tmp"
