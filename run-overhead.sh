@@ -19,7 +19,7 @@ command -v ior     >/dev/null
 command -v bpftool >/dev/null
 sudo -n true 2>/dev/null || { echo "sudo needs a password; run 'sudo true' first." >&2; exit 1; }
 
-MONITORS=(catch_mpiio.py fs-latency.v3.py fs-write-latency.py)
+MONITORS=(fs-latency.v3.py)
 for py in "${MONITORS[@]}"; do [[ -f $py ]]; done
 
 IOR_CMD="mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F"
