@@ -42,6 +42,7 @@ bpf_text = """
 #include <linux/fs.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
+#include <linux/stddef.h>
 
 struct fs_stat_t {
     u64 bucket;
@@ -59,6 +60,7 @@ struct fs_stat_t {
     char name[DNAME_INLINE_LEN];
     char comm[TASK_COMM_LEN];
 };
+
 
 
 
