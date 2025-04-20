@@ -76,7 +76,7 @@ for py in catch_mpiio.py fs-latency.v3.py fs-write-latency.py; do
     log="${py%.*}_out.${ts}"
 
     echo "Running ${py} (logging → ${log})"
-    python3 "$py" >"$log" 2>&1 &
+    sudo python3 "$py" >"$log" 2>&1 &
     pid=$!
 
     avg=$(avg_ior)
