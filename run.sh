@@ -22,12 +22,7 @@ command -v mpirun >/dev/null
 command -v ior    >/dev/null
 
 # Find a GNU “time” that supports -f '%e'
-if   [ -x /usr/bin/time ]; then TIME_CMD=/usr/bin/time
-elif [ -x /bin/time      ]; then TIME_CMD=/bin/time
-elif command -v gtime >/dev/null 2>&1; then TIME_CMD=$(command -v gtime)
-else
-    echo "GNU time not found (need binary that accepts -f)" >&2; exit 1
-fi
+TIME_CMD=time
 
 for py in catch_mpiio.py fs-latency.v3.py fs-write-latency.py; do
     [[ -f $py ]]
@@ -38,14 +33,28 @@ IOR_CMD="mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F"
 ##############################################################################
 # 3. Helper: run IOR 5× and return average seconds (silently)
 ##############################################################################
+##############################################################################
+# Helper: run IOR 5× → average seconds
+#   • prints nothing on success except the final average
+#   • on ANY IOR error, shows full output then aborts
+##############################################################################
 avg_ior() {
-    local sum=0
-    for _ in {1..5}; do
-        dur=$("$TIME_CMD" -f "%e" $IOR_CMD 1>/dev/null 2>&1)
-        sum=$(awk -v a="$sum" -v b="$dur" 'BEGIN{print a+b}')
+    local total=0
+    for n in {1..5}; do
+        tmp=$(mktemp)
+        # Run IOR; GNU time writes elapsed seconds to stdout
+        if ! dur=$("$TIME_CMD" -f "%e" $IOR_CMD 1>"$tmp" 2>&1); then
+            echo "IOR run $n failed — full output:" >&2
+            cat "$tmp" >&2
+            rm -f "$tmp"
+            return 1           # triggers trap and stops the script
+        fi
+        rm -f "$tmp"
+        total=$(awk -v a="$total" -v b="$dur" 'BEGIN{print a+b}')
     done
-    awk -v s="$sum" 'BEGIN{printf "%.3f", s/5}'
+    awk -v s="$total" 'BEGIN{printf "%.3f", s/5}'
 }
+
 
 ##############################################################################
 # 4. Warm‑up (no output)
