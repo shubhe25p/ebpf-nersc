@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 ##############################################################################
 # ior_benchmark.sh  –  IOR baseline + three Python monitors
-# Uses date‑based timing (start=$(date +%s.%N) … end=…)
+# date‑based timing; graceful SIGINT with 10 s timeout, then SIGKILL
 ##############################################################################
 
 set -euo pipefail
@@ -30,58 +30,74 @@ IOR_CMD="mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F"
 avg_ior() {
     local total=0
     for run in {1..5}; do
-        tmp=$(mktemp)                              # capture IOR output
+        tmp=$(mktemp)
         start=$(date +%s.%N)
         if ! $IOR_CMD >"$tmp" 2>&1; then
             echo "IOR run $run failed — full output:" >&2
             cat "$tmp" >&2
             rm -f "$tmp"
-            return 1                               # triggers trap
+            return 1
         fi
         end=$(date +%s.%N)
         rm -f "$tmp"
         dur=$(awk -v s="$start" -v e="$end" 'BEGIN{print e-s}')
         total=$(awk -v t="$total" -v d="$dur" 'BEGIN{print t+d}')
     done
-    awk -v sum="$total" 'BEGIN{printf "%.3f", sum/5}'
+    awk -v sum="$total" 'BEGIN{printf \"%.3f\", sum/5}'
 }
 
 # ────────────────────────────────────────────────────────────────────────────
 # STEP 2/7 : Warm‑up
 # ────────────────────────────────────────────────────────────────────────────
-echo "STEP 2/7 : Warm‑up (5 silent IOR runs) …"
+echo \"STEP 2/7 : Warm‑up (5 silent IOR runs) …\"
 for _ in {1..5}; do $IOR_CMD >/dev/null; done
 
 # ────────────────────────────────────────────────────────────────────────────
 # STEP 3/7 : Baseline
 # ────────────────────────────────────────────────────────────────────────────
-echo "STEP 3/7 : Measuring baseline …"
+echo \"STEP 3/7 : Measuring baseline …\"
 baseline_time=$(avg_ior)
-echo "baseline_time=${baseline_time}s"
+echo \"baseline_time=${baseline_time}s\"
 
 # ────────────────────────────────────────────────────────────────────────────
-# STEP 4‑7 : Monitor loops
+# STEP 4–7 : Monitor loops
 # ────────────────────────────────────────────────────────────────────────────
 step=4
-for py in "${MONITORS[@]}"; do
-    echo "STEP ${step}/7 : Running monitor ${py}"
+for py in \"${MONITORS[@]}\"; do
+    echo \"STEP ${step}/7 : Running monitor ${py}\"
     ts=$(date +%Y%m%d_%H%M%S)
-    log="${py%.*}_${ts}.log"
+    log=\"${py%.*}_${ts}.log\"
 
-    echo "  • starting with sudo → ${log}"
-    sudo python3 "$py" >"$log" 2>&1 &
+    echo \"  • starting with sudo → ${log}\"
+    sudo python3 \"$py\" >\"$log\" 2>&1 &
     pid=$!
 
     avg=$(avg_ior)
-    echo "  • ${py%.*}_ior_time=${avg}s"
+    echo \"  • ${py%.*}_ior_time=${avg}s\"
 
-    echo "  • sending Ctrl‑C (SIGINT) to PID ${pid}"
-    sudo kill -INT "$pid"
-    wait "$pid" 2>/dev/null || true
-    echo "  • monitor stopped; output saved in ${log}"
+    echo \"  • sending Ctrl‑C (SIGINT) to PID ${pid} (up to 10 s to exit)…\"
+    sudo kill -INT \"$pid\"
+
+    # wait up to 10 s for graceful shutdown
+    for i in {1..10}; do
+        if ! sudo kill -0 \"$pid\" 2>/dev/null; then
+            echo \"    → monitor exited after ${i}s\"
+            break
+        fi
+        sleep 1
+    done
+
+    # still running? force kill
+    if sudo kill -0 \"$pid\" 2>/dev/null; then
+        echo \"    → still alive; sending SIGKILL\"
+        sudo kill -9 \"$pid\"
+        wait \"$pid\" 2>/dev/null || true
+    fi
+
+    echo \"  • monitor stopped; output saved in ${log}\"
     echo
 
     step=$((step+1))
 done
 
-echo "STEP 7/7 : All DONE ✔"
+echo \"STEP 7/7 : All DONE ✔\"
