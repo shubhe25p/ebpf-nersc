@@ -23,11 +23,8 @@ for py in "${MONITORS[@]}"; do [[ -f $py ]]; done
 
 IOR_CMD="mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F"
 
-# timing associative arrays for ON / OFF phases
 declare -gA T_on=()
 declare -gA T_off=()
-
-# list of bpftool-log files (only for ON phase)
 BPF_LOGS=()
 
 # ───────── helper: avg_ior() ───────────────────────────────────────────────
@@ -47,11 +44,10 @@ avg_ior() {
 }
 
 # ───────── function: run_phase(flag) ───────────────────────────────────────
-# flag = 1 (stats ON)  or 0 (stats OFF)
 run_phase() {
   local flag=$1
   local prefix=$([ "$flag" = "1" ] && echo "on" || echo "off")
-  declare -n Tarr="T_${prefix}"   # nameref to the right timing array
+  declare -n Tarr="T_${prefix}"
 
   echo "\n======== Phase ${prefix^^}  (bpf_stats_enabled=${flag}) ========"
   sudo sysctl -qw kernel.bpf_stats_enabled=${flag}
@@ -61,7 +57,7 @@ run_phase() {
   Tarr[baseline]=$(avg_ior)
   echo "  • baseline_${prefix}=${Tarr[baseline]}s"
 
-  [[ $flag == 1 ]] && BPF_LOGS=()   # reset log list at start of ON phase
+  [[ $flag == 1 ]] && BPF_LOGS=()
 
   for py in "${MONITORS[@]}"; do
     label=$(echo "${py%.py}" | sed 's/[^A-Za-z0-9]/_/g')
@@ -77,19 +73,21 @@ run_phase() {
     echo "    · ${label}_${prefix}=${Tarr[$label]}s"
 
     if [[ $flag == 1 ]]; then
-      sudo ./bpftool prog list >"$bpf_log"; BPF_LOGS+=("$bpf_log")
+      # change to bpftool src dir temporarily for reliable relative paths
+      pushd "$HOME/bpftool/src" >/dev/null
+      sudo bpftool prog list >"$OLDPWD/$bpf_log"
+      popd >/dev/null
+      BPF_LOGS+=("$bpf_log")
     fi
 
-    # graceful SIGINT → wait up to 10 s → SIGKILL if needed
     sudo kill -INT "$pid"
     for i in {1..10}; do ! sudo kill -0 "$pid" 2>/dev/null && break; sleep 1; done
     sudo kill -0 "$pid" 2>/dev/null && { echo "      killing hung monitor"; sudo kill -9 "$pid"; wait "$pid" 2>/dev/null || true; }
   done
 }
 
-# ───────── Run both phases ─────────────────────────────────────────────────
-run_phase 1   # stats ON (with bpftool)
-run_phase 0   # stats OFF
+run_phase 1
+run_phase 0
 
 # ───────── Timing table ────────────────────────────────────────────────────
 printf "\nTiming (seconds)\n"
@@ -101,7 +99,7 @@ for h in "${header[@]}"; do printf "%-18s" "${T_on[$h]:-NA}s"; done
 for h in "${header[@]}"; do printf "%-18s" "${T_off[$h]:-NA}s"; done
 printf "\n"
 
-# ───────── BPF program stats (only phase‑1) ────────────────────────────────
+# ───────── BPF stats table (phase‑1) ───────────────────────────────────────
 if [[ ${#BPF_LOGS[@]} -gt 0 ]]; then
   printf "\nBPF program runtimes (stats enabled)\n"
   printf "%-25s %-15s %-10s %-15s\n" "prog_name" "run_time_ns" "run_cnt" "avg_ns"
