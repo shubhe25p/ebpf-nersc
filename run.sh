@@ -15,13 +15,13 @@ command -v mpirun>/dev/null || { echo "mpirun not in PATH"; exit 1; }
 for py in catch_mpiio.py fs-latency.v3.py fs-write-latency.py; do
   [[ -f $py ]] || { echo "missing $py"; exit 1; }
 done
-command -v /usr/bin/time >/dev/null || { echo "'time' command missing"; exit 1; }
+command -v time >/dev/null || { echo "'time' command missing"; exit 1; }
 
 # helper: run CMD 5× and echo average seconds
 avg_ior() {
   local sum=0
   for i in {1..5}; do
-    dur=$(/usr/bin/time -f "%e" $CMD 1>/dev/null 2>&1)
+    dur=$(time -f "%e" $CMD 1>/dev/null 2>&1)
     sum=$(awk -v a="$sum" -v b="$dur" 'BEGIN{print a+b}')
   done
   awk -v s="$sum" 'BEGIN{printf "%.3f\n", s/5}'
