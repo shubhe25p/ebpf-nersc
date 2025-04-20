@@ -75,7 +75,7 @@ run_phase() {
     if [[ $flag == 1 ]]; then
       # change to bpftool src dir temporarily for reliable relative paths
       pushd "$HOME/bpftool/src" >/dev/null
-      sudo bpftool prog list >"$OLDPWD/$bpf_log"
+      sudo ./bpftool prog list >"$OLDPWD/$bpf_log"
       popd >/dev/null
       BPF_LOGS+=("$bpf_log")
     fi
