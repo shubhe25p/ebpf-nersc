@@ -77,7 +77,7 @@ run_phase() {
     echo "    · ${label}_${prefix}=${Tarr[$label]}s"
 
     if [[ $flag == 1 ]]; then
-      sudo bpftool prog list >"$bpf_log"; BPF_LOGS+=("$bpf_log")
+      sudo ./bpftool prog list >"$bpf_log"; BPF_LOGS+=("$bpf_log")
     fi
 
     # graceful SIGINT → wait up to 10 s → SIGKILL if needed
