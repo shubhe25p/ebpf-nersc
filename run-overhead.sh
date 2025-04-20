@@ -13,7 +13,7 @@ trap 'echo "ERROR on line $LINENO: $BASH_COMMAND" >&2' ERR
 echo "STEP 1/9 : Setting environment …"
 
 export LD_LIBRARY_PATH=/usr/lib64/mpi/gcc/openmpi4/lib64:${LD_LIBRARY_PATH:-}
-export PATH=/usr/lib64/mpi/gcc/openmpi4/bin:$HOME/ior-4.0.0/src:$HOME/ebpf-nersc:$HOME/bpftool/src:${PATH}
+export PATH=$HOME/bpftool/src:/usr/lib64/mpi/gcc/openmpi4/bin:$HOME/ior-4.0.0/src:$HOME/ebpf-nersc:$HOME/bpftool/src:${PATH}
 
 command -v mpirun   >/dev/null
 command -v ior      >/dev/null
