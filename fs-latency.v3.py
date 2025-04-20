@@ -60,9 +60,10 @@ struct fs_stat_t {
     char comm[TASK_COMM_LEN];
 };
 
-#define containerof(ptr, type, member) ({                   
-    const typeof( ((type *)0)->member ) *__mptr = (ptr);   
-    (type *)( (char *)__mptr - offsetof(type,member) );})
+#define container_of(ptr, type, member) ({                \
+    const typeof(((type *)0)->member) *__mptr = (ptr);    \
+    (type *)((char *)__mptr - offsetof(type, member)); })
+
 
 
 BPF_HASH(read_start, pid_t, struct fs_stat_t);
