@@ -1,19 +1,17 @@
 #!/usr/bin/env bash
 ##############################################################################
-# ior_benchmark.sh – IOR baseline + three Python monitors
-# ▸ date‑based timing (no external “time”)
-# ▸ enables kernel.bpf_stats_enabled
-# ▸ records bpftool prog list for each monitor and prints summary table
+# ior_benchmark.sh – IOR baseline + three Python monitors (twice)
+# ▸ First pass with kernel.bpf_stats_enabled=1  → captures bpftool stats
+# ▸ Second pass with kernel.bpf_stats_enabled=0 → no bpftool capture
+# ▸ Prints timing table for both passes; BPF program table only for first
 ##############################################################################
 
 set -euo pipefail
 trap 'echo "ERROR on line $LINENO: $BASH_COMMAND" >&2' ERR
 
-# ─── STEP 1 : Environment ───────────────────────────────────────────────────
-echo "STEP 1/9 : Setting environment …"
-
+# ─────────────── 0.  Common setup ──────────────────────────────────────────
 export LD_LIBRARY_PATH=/usr/lib64/mpi/gcc/openmpi4/lib64:${LD_LIBRARY_PATH:-}
-export PATH=$HOME/bpftool/src:/usr/lib64/mpi/gcc/openmpi4/bin:$HOME/ior-4.0.0/src:$HOME/ebpf-nersc:$HOME/bpftool/src:${PATH}
+export PATH=/usr/lib64/mpi/gcc/openmpi4/bin:$HOME/ior-4.0.0/src:$HOME/ebpf-nersc:$HOME/bpftool/src:${PATH}
 
 command -v mpirun   >/dev/null
 command -v ior      >/dev/null
@@ -25,18 +23,14 @@ for py in "${MONITORS[@]}"; do [[ -f $py ]]; done
 
 IOR_CMD="mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F"
 
-declare -A T           # timing summary
-BPF_LOGS=()            # keep list of bpftool files for final table
-
-# ─── helper: 5× IOR → average seconds (date timing) ─────────────────────────
+# ─────────────── helper: avg_ior() ─────────────────────────────────────────
 avg_ior() {
   local total=0
-  for run in {1..5}; do
+  for _ in {1..5}; do
     tmp=$(mktemp)
     start=$(date +%s.%N)
     if ! $IOR_CMD >"$tmp" 2>&1; then
-      echo "IOR run $run failed — full output:" >&2
-      cat "$tmp" >&2; rm -f "$tmp"; return 1
+      echo "IOR run failed — full output:" >&2; cat "$tmp" >&2; rm -f "$tmp"; return 1
     fi
     end=$(date +%s.%N); rm -f "$tmp"
     dur=$(awk -v s="$start" -v e="$end" 'BEGIN{print e-s}')
@@ -45,69 +39,73 @@ avg_ior() {
   awk -v sum="$total" 'BEGIN{printf "%.3f", sum/5}'
 }
 
-# ─── STEP 2 : Enable BPF stats ──────────────────────────────────────────────
-echo "STEP 2/9 : Enabling kernel.bpf_stats_enabled …"
-sudo sysctl -qw kernel.bpf_stats_enabled=1
+# ─────────────── function: run_phase() ─────────────────────────────────────
+# $1 = stats flag (1|0) ; fills associative array T_<flag> and captures BPF logs if flag==1
+run_phase() {
+  local flag=$1
+  local prefix="$([ "$flag" == "1" ] && echo "on" || echo "off")"
+  declare -n Tarr="T_${prefix}"  # create nameref
+  echo "\n======== Running phase with bpf_stats_enabled=${flag} ========"
+  sudo sysctl -qw kernel.bpf_stats_enabled=${flag}
 
-# ─── STEP 3 : Warm‑up ───────────────────────────────────────────────────────
-echo "STEP 3/9 : Warm‑up (5 silent IOR runs) …"
-for _ in {1..5}; do $IOR_CMD >/dev/null; done
+  echo "  • Warm‑up (silent)"; for _ in {1..5}; do $IOR_CMD >/dev/null; done
 
-# ─── STEP 4 : Baseline ──────────────────────────────────────────────────────
-echo "STEP 4/9 : Measuring baseline …"
-T[baseline]=$(avg_ior)
-echo "baseline_time=${T[baseline]}s"
+  Tarr[baseline]=$(avg_ior)
+  echo "  • baseline_${prefix}=${Tarr[baseline]}s"
 
-# ─── STEP 5‑8 : Monitor loops ──────────────────────────────────────────────
-step=5
-for py in "${MONITORS[@]}"; do
-  echo "STEP ${step}/9 : Running monitor ${py}"
-  ts=$(date +%Y%m%d_%H%M%S)
-  run_log="${py%.*}_${ts}.log"
-  bpf_log="${py%.*}_bpftool_${ts}.log"
-  label=$(echo "${py%.py}" | sed 's/[^A-Za-z0-9]/_/g')
+  if [[ $flag == 1 ]]; then unset BPF_LOGS; BPF_LOGS=(); fi
 
-  echo "  • sudo python3 → ${run_log}"
-  sudo python3 "$py" >"$run_log" 2>&1 &
-  pid=$!
+  for py in "${MONITORS[@]}"; do
+    label=$(echo "${py%.py}" | sed 's/[^A-Za-z0-9]/_/g')
+    ts=$(date +%Y%m%d_%H%M%S)
+    run_log="${label}_${prefix}_${ts}.log"
+    [[ $flag == 1 ]] && bpf_log="${label}_bpftool_${ts}.log"
 
-  avg=$(avg_ior); T["$label"]=$avg
-  echo "  • ${label}_time=${avg}s"
+    echo "    · sudo python3 $py → ${run_log}"
+    sudo python3 "$py" >"$run_log" 2>&1 &
+    pid=$!
 
-  echo "  • capturing bpftool prog list → ${bpf_log}"
-  sudo bpftool prog list >"$bpf_log"
-  BPF_LOGS+=("$bpf_log")
+    Tarr["$label"]=$(avg_ior)
+    echo "    · ${label}_${prefix}=${Tarr[$label]}s"
 
-  echo "  • sending SIGINT (10 s timeout)…"
-  sudo kill -INT "$pid"
-  for i in {1..10}; do
-    if ! sudo kill -0 "$pid" 2>/dev/null; then echo "    ▸ exited after ${i}s"; break; fi
-    sleep 1
+    if [[ $flag == 1 ]]; then
+      sudo bpftool prog list >"$bpf_log"; BPF_LOGS+=("$bpf_log")
+    fi
+
+    sudo kill -INT "$pid"; for i in {1..10}; do ! sudo kill -0 "$pid" 2>/dev/null && break; sleep 1; done
+    sudo kill -0 "$pid" 2>/dev/null && { sudo kill -9 "$pid"; wait "$pid" 2>/dev/null || true; }
   done
-  if sudo kill -0 "$pid" 2>/dev/null; then echo "    ▸ still alive; SIGKILL"; sudo kill -9 "$pid"; wait "$pid" 2>/dev/null || true; fi
-  echo
-  step=$((step+1))
-done
+}
 
-# ─── STEP 9 : Summary tables ───────────────────────────────────────────────
-# Timing table
-printf "\n%-18s" "baseline"
-for py in "${MONITORS[@]}"; do printf "%-18s" "$(echo "${py%.py}" | sed 's/[^A-Za-z0-9]/_/g')"; done
-printf "\n%-18s" "${T[baseline]}s"
-for py in "${MONITORS[@]}"; do label=$(echo "${py%.py}" | sed 's/[^A-Za-z0-9]/_/g'); printf "%-18s" "${T[$label]}s"; done
-printf "\n\n"
+# ─────────────── 1st phase: stats ON ───────────────────────────────────────
+run_phase 1
 
-# BPF stats table header
-printf "%-25s %-15s %-10s %-15s\n" "prog_name" "run_time_ns" "run_cnt" "avg_ns"
+# ─────────────── 2nd phase: stats OFF ──────────────────────────────────────
+run_phase 0
 
-# parse each bpftool file
-for bl in "${BPF_LOGS[@]}"; do
-  awk '
-  /^[0-9]+:/ {name=""; rt=""; cnt=""}
-  / name /  {for(i=1;i<=NF;i++) if($i=="name") {name=$(i+1); break}}
-  / run_time_ns / {for(i=1;i<=NF;i++){ if($i=="run_time_ns"){rt=$(i+1)}; if($i=="run_cnt"){cnt=$(i+1)} }}
-  (name!="" && rt!="" && cnt!="" && cnt!=0){avg=rt/cnt; printf "%-25s %-15s %-10s %-15.1f\n", name, rt, cnt, avg}
-  ' "$bl"
-done
+# ─────────────── Summary tables ────────────────────────────────────────────
+printf "\nTiming (seconds)\n"
+header=(baseline)
+for py in "${MONITORS[@]}"; do header+=( "$(echo "${py%.py}" | sed 's/[^A-Za-z0-9]/_/g')" ); done
+printf "%-18s" ""; for h in "${header[@]}"; do printf "%-18s" "${h}_on"; done; for h in "${header[@]}"; do printf "%-18s" "${h}_off"; done; printf "\n"
 
-echo -e "\nSTEP 9/9 : All DONE ✔"
+printf "%-18s" "time";
+for h in "${header[@]}"; do printf "%-18s" "${T_on[$h]}s"; done;
+for h in "${header[@]}"; do printf "%-18s" "${T_off[$h]}s"; done;
+printf "\n"
+
+# BPF program stats (only for first phase)
+if [[ ${#BPF_LOGS[@]} -gt 0 ]]; then
+  printf "\nBPF program runtimes (stats enabled)\n"
+  printf "%-25s %-15s %-10s %-15s\n" "prog_name" "run_time_ns" "run_cnt" "avg_ns"
+  for bl in "${BPF_LOGS[@]}"; do
+    awk '
+    /^[0-9]+:/ {name=""; rt=""; cnt=""}
+    / name /  {for(i=1;i<=NF;i++) if($i=="name"){name=$(i+1); break}}
+    / run_time_ns / {for(i=1;i<=NF;i++){ if($i=="run_time_ns"){rt=$(i+1)}; if($i=="run_cnt"){cnt=$(i+1)} }}
+    (name!="" && rt!="" && cnt!="" && cnt!=0){avg=rt/cnt; printf "%-25s %-15s %-10s %-15.1f\n", name, rt, cnt, avg}
+    ' "$bl"
+  done
+fi
+
+echo -e "\nAll DONE ✔"
