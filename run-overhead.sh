@@ -74,8 +74,8 @@ run_phase() {
       BPF_FILE[$label]="$bpf_log"
     fi
 
-    sudo kill -INT "$pid"; for i in {1..10}; do ! sudo kill -0 "$pid" 2>/dev/null && break; sleep 1; done
-    sudo kill -0 "$pid" 2>/dev/null && { echo "      killing hung monitor"; sudo kill -9 "$pid"; wait "$pid" 2>/dev/null || true; }
+    sudo kill -INT "$pid"; for i in {1..10}; do ! sudo kill -0 "$pid" 2>/dev/null || true && break; sleep 1; done
+    sudo kill -0 "$pid" 2>/dev/null || true && { echo "      killing hung monitor"; sudo kill -9 "$pid"; wait "$pid" 2>/dev/null || true; }
   done
 }
 
