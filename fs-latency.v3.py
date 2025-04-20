@@ -43,6 +43,32 @@ bpf_text = """
 #include <linux/dcache.h>
 #include <linux/mount.h>
     
+struct mount {
+	struct hlist_node mnt_hash;
+	struct mount *mnt_parent;
+	struct dentry *mnt_mountpoint;
+	struct vfsmount mnt;
+    int mnt_id;
+};
+
+struct mountpoint {
+	struct hlist_node m_hash;
+	struct dentry *m_dentry;
+	struct hlist_head m_list;
+	int m_count;
+};
+
+#ifndef offsetof
+#define offsetof(TYPE, MEMBER)  ((size_t)&((TYPE *)0)->MEMBER)
+#endif
+
+#ifndef containerof
+#define containerof(ptr, type, member) ({                      \
+    const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+    (type *)( (char *)__mptr - offsetof(type,member) );})
+#endif
+
+
 struct fs_stat_t {
     u64 bucket;
     u64 ts;
@@ -54,8 +80,8 @@ struct fs_stat_t {
     char msrc[16];   /* arbitrary choice for mount-source, makes no sense */
     char str1[16];
     char str2[DNAME_INLINE_LEN];
-    char str3[DNAME_INLINE_LEN];
-    char str4[16];
+    char mountpoint[DNAME_INLINE_LEN];
+    int mnt_id;
     char name[DNAME_INLINE_LEN];
     char comm[TASK_COMM_LEN];
 };
@@ -101,13 +127,20 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     
 
     de = file->f_inode->i_sb->s_root;
-    bpf_probe_read_kernel(&fs_info.str2, sizeof(fs_info.str2), de->d_iname);
-
+    struct path p = file->f_path;
     bpf_probe_read_kernel(&fs_info.str1, sizeof(fs_info.str1), de->d_name.name);
 
-    de = file->f_path.dentry;
-    bpf_probe_read_kernel(&fs_info.str3, sizeof(fs_info.str3), de->d_name.name);
     
+    struct vfsmount *vmnt;
+    bpf_probe_read_kernel(&vmnt, sizeof(vmnt), &p.mnt);
+    struct mount *real_mnt = containerof(vmnt, struct mount, mnt);
+    bpf_probe_read_kernel(&fs_info.mnt_id, sizeof(fs_info.mnt_id), &real_mnt->mnt_id);
+    struct dentry *m_mp;
+    bpf_probe_read_kernel(&m_mp, sizeof(m_mp), &real_mnt->mnt_mountpoint);
+    struct qstr m_dname;
+    bpf_probe_read_kernel(&m_dname, sizeof(m_dname), &m_mp->d_name);
+    bpf_probe_read_kernel(&fs_info.mountpoint, sizeof(fs_info.mountpoint), m_dname.name);
+
     // grab file name
     struct qstr d_name = de->d_name;
     bpf_probe_read_kernel(&fs_info.name, sizeof(fs_info.name), d_name.name);
