@@ -43,7 +43,10 @@ bpf_text = """
 #include <linux/dcache.h>
 #include <linux/mount.h>
 
-
+struct mount{
+    struct vfsmount mnt;
+    const char *mnt_devname;
+};
 #define offsetof(TYPE, MEMBER) ((size_t)&((TYPE *)0)->MEMBER)
 #define container_of(ptr, type, member) \
     ((type *)((char *)(ptr) - offsetof(type, member)))
@@ -75,7 +78,6 @@ BPF_HASH(fs_latency_hist, struct fs_stat_t, u64);
 static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     char __user *buf, size_t count)
 {
-    struct mount* mnt;
     u32 tgid = bpf_get_current_pid_tgid() >> 32;
     if (TGID_FILTER)
         return 0;
@@ -112,9 +114,9 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     bpf_probe_read_kernel(&fs_info.str1, sizeof(fs_info.str1), de->d_name.name);
 
     struct vfsmount *vmnt = file->f_path.mnt;
-    mnt = container_of(vmnt, struct mount, mnt);
+    struct mount* mnt = container_of(vmnt, struct mount, mnt);
     bpf_probe_read_kernel(&fs_info.str3, sizeof(fs_info.str3), mnt->mnt_devname);
-
+    
     // grab file name
     struct qstr d_name = de->d_name;
     bpf_probe_read_kernel(&fs_info.name, sizeof(fs_info.name), d_name.name);
