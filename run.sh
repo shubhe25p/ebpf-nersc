@@ -1,58 +1,85 @@
 #!/usr/bin/env bash
-# ior_benchmark.sh
-set -euo pipefail
+# ior_benchmark_verbose.sh
+# Purpose: run IOR baselines and benchmarks while three Python monitors
+#          are attached, with VERY verbose output.
 
-# --- 0. env setup ----------------------------------------------------------
+##############################################################################
+# 1. Strict error handling + command trace
+##############################################################################
+set -euo pipefail      # die on first error, unset var, or pipe failure
+set -x                 # echo every command as it is executed
+PS4='[$(date +%H:%M:%S)] '  # timestamp each traced line
+
+##############################################################################
+# 2. Environment
+##############################################################################
 export LD_LIBRARY_PATH=/usr/lib64/mpi/gcc/openmpi4/lib64:${LD_LIBRARY_PATH:-}
 export PATH=/usr/lib64/mpi/gcc/openmpi4/bin:${PATH}
 export PATH="$HOME/ior-4.0.0/src:$HOME/ebpf-nersc:${PATH}"
 
-CMD="mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F"
-
-# sanity checks
-command -v ior   >/dev/null || { echo "ior not in PATH"; exit 1; }
-command -v mpirun>/dev/null || { echo "mpirun not in PATH"; exit 1; }
+##############################################################################
+# 3. Sanity checks
+##############################################################################
+command -v mpirun   >/dev/null
+command -v ior      >/dev/null
+command -v /usr/bin/time >/dev/null
 for py in catch_mpiio.py fs-latency.v3.py fs-write-latency.py; do
-  [[ -f $py ]] || { echo "missing $py"; exit 1; }
+    [[ -f $py ]]
 done
-command -v time >/dev/null || { echo "'time' command missing"; exit 1; }
 
-# helper: run CMD 5× and echo average seconds
+##############################################################################
+# 4. Helper: run IOR five times and return average (prints each run)
+##############################################################################
 avg_ior() {
-  local sum=0
-  for i in {1..5}; do
-    dur=$(time -f "%e" $CMD 1>/dev/null 2>&1)
-    sum=$(awk -v a="$sum" -v b="$dur" 'BEGIN{print a+b}')
-  done
-  awk -v s="$sum" 'BEGIN{printf "%.3f\n", s/5}'
+    local total=0
+    for i in {1..5}; do
+        echo "---- IOR run $i ----"
+        # /usr/bin/time prints elapsed seconds (%e)
+        local dur=$(/usr/bin/time -f "%e" mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F \
+                    1>/dev/null 2>&1 | tee /dev/fd/2)
+        echo "elapsed=${dur}s"
+        total=$(awk -v a="$total" -v b="$dur" 'BEGIN{print a+b}')
+    done
+    awk -v t="$total" 'BEGIN{printf "%.3f", t/5}'
 }
 
-# --- 1. warm‑up ------------------------------------------------------------
-echo "Warm‑up (5 runs)…"
-for i in {1..5}; do $CMD >/dev/null; done
+##############################################################################
+# 5. Warm‑up (ignored timings)
+##############################################################################
+echo "========== WARM‑UP (5 runs) =========="
+for i in {1..5}; do
+    echo "-- warm‑up run $i --"
+    mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F >/dev/null
+done
 
-# --- 2. baseline -----------------------------------------------------------
-echo "Measuring baseline…"
+##############################################################################
+# 6. Baseline measurement
+##############################################################################
+echo "========== BASELINE (5 runs) =========="
 baseline_time=$(avg_ior)
 echo "baseline_time=${baseline_time}s"
 
-# --- 3. monitors -----------------------------------------------------------
+##############################################################################
+# 7. Loop over Python monitors
+##############################################################################
 for py in catch_mpiio.py fs-latency.v3.py fs-write-latency.py; do
-  ts=$(date +%Y%m%d_%H%M%S)
-  log="${py%.*}_out.${ts}"
+    ts=$(date +%Y%m%d_%H%M%S)
+    log="${py%.*}_out.${ts}"
 
-  echo "=== ${py} ==="
-  python3 "$py" >"$log" 2>&1 &
-  pid=$!
-  echo "PID $pid, logging to $log"
+    echo "========== ${py} =========="
+    echo "Starting ${py} (log → ${log})"
+    python3 "$py" >"$log" 2>&1 &
+    pid=$!
+    echo "PID ${pid}"
 
-  avg=$(avg_ior)
-  echo "${py%.*}_ior_time=${avg}s"
+    echo "----- Running IOR with ${py} active -----"
+    avg=$(avg_ior)
+    echo "${py%.*}_ior_time=${avg}s"
 
-  echo "Stopping ${py}"
-  kill -INT "$pid"
-  wait "$pid" 2>/dev/null || true
-  echo
+    echo "Stopping ${py} with SIGINT (Ctrl‑C)…"
+    kill -INT "$pid"
+    wait "$pid" 2>/dev/null || true
+    echo "${py} stopped; output saved to ${log}"
 done
 
-echo "All done."
+echo "========== ALL DONE =========="
