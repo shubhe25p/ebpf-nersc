@@ -36,7 +36,7 @@ b = BPF(text=src)
 
 def callback(ctx, data, size):
     event = b['buffer'].event(data)
-    print("%10d %10d %10d" % event.dfd, event.flags, event.tgid))
+    print("%10d %10d %10d" % event.dfd, event.flags, event.tgid)
 
 b['buffer'].open_ring_buffer(callback)
 
