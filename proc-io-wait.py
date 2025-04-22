@@ -11,18 +11,14 @@ BPF_RINGBUF_OUTPUT(buffer, 1 << 4);
 struct event {
     u32 pid;
     u32 tgid;
-    int dfd;
-    int flags;
-    int mode;
+    int fd;
 };
 
 TRACEPOINT_PROBE(syscalls, sys_enter_read) {
     int zero = 0;
 
     struct event event = {};
-    event.dfd = args->dfd;
-    event.flags = args->flags;
-    event.mode = args->mode;
+    event.fd = args->fd;
     event.pid = bpf_get_current_pid_tgid();
     event.tgid = bpf_get_current_pid_tgid() >> 32;
 
@@ -36,13 +32,13 @@ b = BPF(text=src)
 
 def callback(ctx, data, size):
     event = b['buffer'].event(data)
-    print("%10d %10d %10d" % event.dfd, event.flags, event.tgid)
+    print("%10d %10d" % event.fd, event.tgid)
 
 b['buffer'].open_ring_buffer(callback)
 
 print("Printing read() calls, ctrl-c to exit.")
 
-print("%10s %10s %10s" % ("DIR_FD", "FLAGS", "PID"))
+print("%10s %10s" % ("DIR_FD", "PID"))
 
 try:
     while 1:
