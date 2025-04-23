@@ -19,6 +19,7 @@ command -v ior     >/dev/null
 command -v bpftool >/dev/null
 sudo -n true 2>/dev/null || { echo "sudo needs a password; run 'sudo true' first." >&2; exit 1; }
 
+# Updated monitor list ------------------------------------------------------
 MONITORS=(catch_mpiio.py fs-latency.v3.py tp_read_iops.py)
 for py in "${MONITORS[@]}"; do [[ -f $py ]]; done
 
@@ -69,7 +70,7 @@ run_phase() {
     if [[ $flag == 1 ]]; then
       bpf_log="${label}_bpftool_${ts}.log"
       pushd "$HOME/bpftool/src" >/dev/null
-      sudo ./bpftool prog list >"$OLDPWD/$bpf_log"
+      sudo bpftool prog list >"$OLDPWD/$bpf_log"
       popd >/dev/null
       BPF_FILE[$label]="$bpf_log"
     fi
@@ -102,7 +103,6 @@ for label in "${!BPF_FILE[@]}"; do
   printf "%-25s %-15s %-10s %-15s\n" "prog_name" "run_time_ns" "run_cnt" "avg_ns"
   awk '
     /^[0-9]+:/ {
-      # Extract desired fields only from first line of each entry
       name=""; rt=""; cnt="";
       for(i=1;i<=NF;i++){
         if($i=="name"){name=$(i+1)}
@@ -111,14 +111,9 @@ for label in "${!BPF_FILE[@]}"; do
       }
       if(name!="" && rt!="" && cnt!="" && cnt!=0 && !seen[name]++){
         avg=rt/cnt;
-        printf "%-25s %-15s %-10s %-15.1f
-", name, rt, cnt, avg
+        printf "%-25s %-15s %-10s %-15.1f\n", name, rt, cnt, avg
       }
-    }' "$log_file" "$log_file"
-  # print any entries stored in associative array (dedup) in awk above
-  awk -v file="$log_file" '
-    /^BPF runtimes/ {next}  # skip header lines of possible previous output
-  ' "${log_file}" >/dev/null  # no-op placeholder for clarity
+    }' "$log_file"
 done
 
 echo -e "\nAll DONE ✔"
