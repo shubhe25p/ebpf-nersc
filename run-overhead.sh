@@ -69,7 +69,7 @@ run_phase() {
     if [[ $flag == 1 ]]; then
       bpf_log="${label}_bpftool_${ts}.log"
       pushd "$HOME/bpftool/src" >/dev/null
-      sudo ./bpftool prog list >"$OLDPWD/$bpf_log"
+      sudo bpftool prog list >"$OLDPWD/$bpf_log"
       popd >/dev/null
       BPF_FILE[$label]="$bpf_log"
     fi
@@ -102,22 +102,18 @@ for label in "${!BPF_FILE[@]}"; do
   printf "%-25s %-15s %-10s %-15s\n" "prog_name" "run_time_ns" "run_cnt" "avg_ns"
   awk '
     /^[0-9]+:/ {
-      if(name!="" && seen[key]==0 && cnt!="" && cnt!=0){avg=rt/cnt; printf "%-25s %-15s %-10s %-15.1f\n", name, rt, cnt, avg}
-      name=""; rt=""; cnt=""; key=""
-    }
-    / name /  {for(i=1;i<=NF;i++) if($i=="name"){name=$(i+1); break}}
-    / run_time_ns / {
+      # Extract fields from the first line of each program entry
+      name=""; rt=""; cnt="";
       for(i=1;i<=NF;i++){
-        if($i=="run_time_ns"){rt=$(i+1)};
+        if($i=="name"){name=$(i+1)}
+        if($i=="run_time_ns"){rt=$(i+1)}
         if($i=="run_cnt"){cnt=$(i+1)}
       }
-      key=name"_"rt"_"cnt
-      seen[key]++
-    }
-    END{
-      if(name!="" && seen[key]==0 && cnt!="" && cnt!=0){avg=rt/cnt; printf "%-25s %-15s %-10s %-15.1f\n", name, rt, cnt, avg}
-    }
-  ' "$log_file"
+      if(name!="" && rt!="" && cnt!="" && cnt!=0 && !seen[name]++){
+        avg=rt/cnt; printf "%-25s %-15s %-10s %-15.1f
+", name, rt, cnt, avg
+      }
+    }' "$log_file" "$log_file"
   # print any entries stored in associative array (dedup) in awk above
   awk -v file="$log_file" '
     /^BPF runtimes/ {next}  # skip header lines of possible previous output
