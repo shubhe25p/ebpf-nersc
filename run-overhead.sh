@@ -75,7 +75,7 @@ run_phase() {
       BPF_FILE[$label]="$bpf_log"
     fi
 
-    sudo kill -INT "$pid"
+    if sudo kill -0 "$pid" 2>/dev/null; then sudo kill -INT "$pid" || true; fi
     for i in {1..10}; do
       if ! sudo kill -0 "$pid" 2>/dev/null; then break; fi
       sleep 1
