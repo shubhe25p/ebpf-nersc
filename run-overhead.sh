@@ -19,7 +19,7 @@ command -v ior     >/dev/null
 command -v bpftool >/dev/null
 sudo -n true 2>/dev/null || { echo "sudo needs a password; run 'sudo true' first." >&2; exit 1; }
 
-MONITORS=(catch_mpiio.py fs-latency.v3.py fs-write-latency.py)
+MONITORS=(catch_mpiio.py fs-latency.v3.py tp_read_iops.py)
 for py in "${MONITORS[@]}"; do [[ -f $py ]]; done
 
 IOR_CMD="mpirun -n 2 ior -a MPIIO -b 16m -s 32 -F"
@@ -102,7 +102,7 @@ for label in "${!BPF_FILE[@]}"; do
   printf "%-25s %-15s %-10s %-15s\n" "prog_name" "run_time_ns" "run_cnt" "avg_ns"
   awk '
     /^[0-9]+:/ {
-      # Extract fields from the first line of each program entry
+      # Extract desired fields only from first line of each entry
       name=""; rt=""; cnt="";
       for(i=1;i<=NF;i++){
         if($i=="name"){name=$(i+1)}
@@ -110,7 +110,8 @@ for label in "${!BPF_FILE[@]}"; do
         if($i=="run_cnt"){cnt=$(i+1)}
       }
       if(name!="" && rt!="" && cnt!="" && cnt!=0 && !seen[name]++){
-        avg=rt/cnt; printf "%-25s %-15s %-10s %-15.1f
+        avg=rt/cnt;
+        printf "%-25s %-15s %-10s %-15.1f
 ", name, rt, cnt, avg
       }
     }' "$log_file" "$log_file"
