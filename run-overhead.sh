@@ -70,7 +70,7 @@ run_phase() {
     if [[ $flag == 1 ]]; then
       bpf_log="${label}_bpftool_${ts}.log"
       pushd "$HOME/bpftool/src" >/dev/null
-      sudo bpftool prog list >"$OLDPWD/$bpf_log"
+      sudo ./bpftool prog list >"$OLDPWD/$bpf_log"
       popd >/dev/null
       BPF_FILE[$label]="$bpf_log"
     fi
