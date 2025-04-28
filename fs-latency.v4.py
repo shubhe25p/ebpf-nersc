@@ -105,6 +105,7 @@ int trace_read_return(struct pt_regs *ctx)
     u64 latency = bpf_ktime_get_ns() - fs_info->ts;
     latency /= 1000;  // convert to microseconds
     fs_info->bucket = bpf_log2l(latency);
+    fs_info->ts = 0; 
     count = fs_latency_hist.lookup_or_init(fs_info, &zero);
     (*count)++;
     read_start.delete(&pid);
