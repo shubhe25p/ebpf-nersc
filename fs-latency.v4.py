@@ -47,14 +47,8 @@ bpf_text = """
 struct fs_stat_t {
     u64 bucket;
     u64 ts;
-    u64 delta_us;
-    u64 throughput;
-    u32 pid;
-    u32 sz;
     char fstype[16]; /* arbitrary choice for file system type, no fs would have this greater than 16 chars */
     char msrc[16];   /* arbitrary choice for mount-source, makes no sense */
-    char name[DNAME_INLINE_LEN];
-    char comm[TASK_COMM_LEN];
 };
 
 
@@ -65,9 +59,6 @@ BPF_HASH(fs_latency_hist, struct fs_stat_t, u64);
 static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     char __user *buf, size_t count)
 {
-    u32 tgid = bpf_get_current_pid_tgid() >> 32;
-    if (TGID_FILTER)
-        return 0;
 
     u32 pid = bpf_get_current_pid_tgid();
 
@@ -79,12 +70,8 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
 
     // store size and timestamp by pid
     struct fs_stat_t fs_info = {};
-    bpf_get_current_comm(&fs_info.comm, sizeof(fs_info.comm));
-    if (COMM_FILTER)
-        return 0;
 
     fs_info.pid=pid;
-    fs_info.sz=count;
 
     // grab file system type
     const char* fstype_name = file->f_inode->i_sb->s_type->name;
@@ -94,11 +81,6 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
     const char* msrc = file->f_inode->i_sb->s_id;
     bpf_probe_read_kernel(&fs_info.msrc, sizeof(fs_info.msrc), msrc);
     
-
-    // grab file name
-    struct qstr d_name = de->d_name;
-    bpf_probe_read_kernel(&fs_info.name, sizeof(fs_info.name), d_name.name);
-
     fs_info.ts = bpf_ktime_get_ns();
     read_start.update(&pid, &fs_info);
     return 0;
@@ -125,8 +107,6 @@ int trace_read_return(struct pt_regs *ctx)
     u64 latency = bpf_ktime_get_ns() - fs_info->ts;
     latency /= 1000;  // convert to microseconds
     fs_info->bucket = bpf_log2l(latency);
-    fs_info->delta_us = latency;
-    fs_info->throughput = (fs_info->sz/latency);
     count = fs_latency_hist.lookup_or_init(fs_info, &zero);
     (*count)++;
     read_start.delete(&pid);
@@ -136,16 +116,6 @@ int trace_read_return(struct pt_regs *ctx)
 
 
 """
-
-if args.tgid:
-    bpf_text = bpf_text.replace('TGID_FILTER', 'tgid != %d' % tgid)
-else:
-    bpf_text = bpf_text.replace('TGID_FILTER', '0')
-if args.comm:
-    target_str = generate_comm_string()
-    bpf_text = bpf_text.replace('COMM_FILTER', target_str)
-else:
-    bpf_text = bpf_text.replace('COMM_FILTER', '0')
 
 
 b = BPF(text=bpf_text)
