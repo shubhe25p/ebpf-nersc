@@ -70,9 +70,7 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
 
     // store size and timestamp by pid
     struct fs_stat_t fs_info = {};
-
-    fs_info.pid=pid;
-
+    
     // grab file system type
     const char* fstype_name = file->f_inode->i_sb->s_type->name;
     bpf_probe_read_kernel(&fs_info.fstype, sizeof(fs_info.fstype), fstype_name);
