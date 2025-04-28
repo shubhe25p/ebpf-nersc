@@ -45,10 +45,10 @@ bpf_text = """
 
 
 struct fs_stat_t {
-    u64 bucket;
-    u64 ts;
     char fstype[16]; /* arbitrary choice for file system type, no fs would have this greater than 16 chars */
     char msrc[16];   /* arbitrary choice for mount-source, makes no sense */
+    u64 bucket;
+    u64 ts;
 };
 
 
@@ -70,7 +70,7 @@ static int trace_rw_entry(struct pt_regs *ctx, struct file *file,
 
     // store size and timestamp by pid
     struct fs_stat_t fs_info = {};
-    
+
     // grab file system type
     const char* fstype_name = file->f_inode->i_sb->s_type->name;
     bpf_probe_read_kernel(&fs_info.fstype, sizeof(fs_info.fstype), fstype_name);
