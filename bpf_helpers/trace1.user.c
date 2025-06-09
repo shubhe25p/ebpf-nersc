@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <bpf/libbpf.h>
+#include "trace_helpers.h"
 
 int main(int ac, char **argv)
 {
