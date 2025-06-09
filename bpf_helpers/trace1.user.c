@@ -15,11 +15,18 @@ int main(void) {
     if (err) goto cleanup;
 
     printf("Polling… CTRL-C to exit\n");
-    while (bpf_map__get_next_key(skel->maps.cnt, &key, &next_key) == 0) {
-        if (bpf_map__lookup_elem(skel->maps.cnt, &next_key, &value) == 0)
-            printf("openat calls: %llu\n", value);
-        key = next_key;
-    }
+    while (bpf_map__get_next_key(
+         skel->maps.cnt,
+         &key,   sizeof(key),
+         &next_key, sizeof(next_key)) == 0) {
+    /* lookup */
+    if (bpf_map__lookup_elem(
+            skel->maps.cnt,
+            &next_key,    sizeof(next_key),
+            &value,       sizeof(value)) == 0)
+        printf("openat calls: %llu\n", value);
+    key = next_key;
+}
 
 cleanup:
     trace1_bpf__destroy(skel);
