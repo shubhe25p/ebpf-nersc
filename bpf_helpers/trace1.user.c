@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
-#include "trace1_openat.skel.h"   // your bpftool-gen’d header
+#include "trace1.skel.h"
 
 int main(void) {
     struct trace1_openat_bpf *skel;
