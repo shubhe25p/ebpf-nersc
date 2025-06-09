@@ -11,7 +11,7 @@ struct {
 } cnt SEC(".maps");
 
 SEC("tracepoint/syscalls/sys_enter_openat")
-int BPF_PROG1(void* ctx)
+int bpf_prog1(void* ctx)
 {
     u32 key = 0;
     u32* cnt = bpf_map_lookup_elem(&cnt, &key);

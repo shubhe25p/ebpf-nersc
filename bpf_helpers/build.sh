@@ -21,8 +21,6 @@ bpftool gen skeleton "${NAME}.bpf.o" > "${NAME}.skel.h"
 echo "→ Compiling user-space program (${NAME}.user.c)…"
 clang -g -Wall -c "${NAME}.user.c" -o "${NAME}.o"
 
-clang -g -Wall -c trace_helpers.c -o trace_helpers.o
-
 echo "→ Linking final binary (${NAME})…"
 clang -g -Wall "${NAME}.o" trace_helpers.o \
   -I. -lbpf -lelf -lz \
