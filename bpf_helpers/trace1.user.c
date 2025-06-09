@@ -36,10 +36,10 @@ int main(int argc, char **argv) {
     printf("Polling cnt map every 5 seconds. Ctrl+C to exit.\n");
     while (!exiting) {
         sleep(5);
-        u32 key = 0, next_key;
-        u64 value;
-        while (bpf_map_get_next_key(map_fd, &key, &next_key) == 0) {
-            if (bpf_map_lookup_elem(map_fd, &next_key, &value) == 0)
+        __u32 key = 0, next_key;
+        __u64 value;
+        while (bpf_map__get_next_key(map_fd, &key, &next_key) == 0) {
+            if (bpf_map__lookup_elem(map_fd, &next_key, &value) == 0)
                 printf("key=%u val=%llu\n", next_key, value);
             key = next_key;
         }
