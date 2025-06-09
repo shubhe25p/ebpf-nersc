@@ -7,6 +7,7 @@
 
 #define TRACEFS_PIPE	"/sys/kernel/tracing/trace_pipe"
 #define DEBUGFS_PIPE "/sys/kernel/debug/tracing/trace_pipe"
+
 int read_trace_pipe_iter(void (*cb)(const char *str, void *data), void *data, int iter)
 {
 	size_t buflen, n;
@@ -45,4 +46,10 @@ static void trace_pipe_cb(const char *str, void *data)
 void read_trace_pipe(void)
 {
 	read_trace_pipe_iter(trace_pipe_cb, NULL, 0);
+}
+
+int main()
+{
+	read_trace_pipe();
+	return 0;
 }
