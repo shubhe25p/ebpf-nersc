@@ -4,7 +4,7 @@
 #include <bpf/bpf_helpers.h>
 
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_ARRAY);
     __type(key, u32);
     __type(value, u32);
     __uint(max_entries, 1);
