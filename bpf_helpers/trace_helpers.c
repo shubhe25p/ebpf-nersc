@@ -48,8 +48,3 @@ void read_trace_pipe(void)
 	read_trace_pipe_iter(trace_pipe_cb, NULL, 0);
 }
 
-int main()
-{
-	read_trace_pipe();
-	return 0;
-}

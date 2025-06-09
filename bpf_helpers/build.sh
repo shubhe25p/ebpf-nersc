@@ -21,12 +21,14 @@ bpftool gen skeleton "${NAME}.bpf.o" > "${NAME}.skel.h"
 echo "→ Compiling user-space program (${NAME}.user.c)…"
 clang -g -Wall -c "${NAME}.user.c" -o "${NAME}.o"
 
+clang -g -Wall -c trace_helpers.c -o trace_helpers.o
+
 echo "→ Linking final binary (${NAME})…"
-clang -g -Wall "${NAME}.o" \
-  -L"$HOME/libbpf/src" -lbpf -lelf -lz \
+clang -g -Wall "${NAME}.o" trace_helpers.o \
+  -I. -lbpf -lelf -lz \
   -o "${NAME}"
 
 echo "→ Cleaning up…"
-rm -f "${NAME}.o" "${NAME}.bpf.o" "${NAME}.temp.bpf.o"
+rm -f "${NAME}.o" "${NAME}.temp.bpf.o"
 
 echo "✅ Done. Run with: sudo ./${NAME}"
