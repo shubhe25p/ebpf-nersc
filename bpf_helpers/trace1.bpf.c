@@ -18,6 +18,7 @@ int BPF_PROG1(void* ctx)
     if(!cnt)
         return 0;
     __sync_fetch_and_add(cnt, 1);
+    bpf_trace_printk("openat calls: %d", *cnt);
     return 0;
 }
 

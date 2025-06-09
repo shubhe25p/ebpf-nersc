@@ -1,42 +1,45 @@
-// trace1.user.c
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <bpf/libbpf.h>
-#include "trace1.skel.h"    // generated via: bpftool gen skeleton trace1.bpf.o -o trace1.skel.h
 
-int main(int argc, char **argv)
+int main(int ac, char **argv)
 {
-    struct trace1_bpf *skel;
-    int err, map_fd;
-    __u32 key = 0, next_key;
-    __u64 value;
+	struct bpf_link *link = NULL;
+	struct bpf_program *prog;
+	struct bpf_object *obj;
+	char filename[256];
+	FILE *f;
 
-    /* 1) Open & load skeleton (auto-bumps RLIMIT_MEMLOCK) */
-    skel = trace1_bpf__open_and_load();
-    if (!skel) {
-        fprintf(stderr, "ERROR: opening BPF skeleton\n");
-        return 1;
-    }
+	snprintf(filename, sizeof(filename), "%s.bpf.o", argv[0]);
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj)) {
+		fprintf(stderr, "ERROR: opening BPF object file failed\n");
+		return 0;
+	}
 
-    /* 2) Attach to tracepoint */
-    err = trace1_bpf__attach(skel);
-    if (err) {
-        fprintf(stderr, "ERROR: attaching BPF program: %d\n", err);
-        goto cleanup;
-    }
+	prog = bpf_object__find_program_by_name(obj, "bpf_prog1");
+	if (!prog) {
+		fprintf(stderr, "ERROR: finding a prog in obj file failed\n");
+		goto cleanup;
+	}
 
-    /* 3) Get raw map FD for FD-API calls */
-    map_fd = bpf_map__fd(skel->maps.cnt);
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		fprintf(stderr, "ERROR: loading BPF object file failed\n");
+		goto cleanup;
+	}
 
-    printf("Polling map via FD API... Ctrl-C to exit\n");
-    while (bpf_map_get_next_key(map_fd, &key, &next_key) == 0) {
-        if (bpf_map_lookup_elem(map_fd, &next_key, &value) == 0)
-            printf("openat[%u] = %llu\n", next_key, value);
-        key = next_key;
-    }
+	link = bpf_program__attach(prog);
+	if (libbpf_get_error(link)) {
+		fprintf(stderr, "ERROR: bpf_program__attach failed\n");
+		link = NULL;
+		goto cleanup;
+	}
+
+	read_trace_pipe();
 
 cleanup:
-    trace1_bpf__destroy(skel);
-    return err;
+	bpf_link__destroy(link);
+	bpf_object__close(obj);
+	return 0;
 }
