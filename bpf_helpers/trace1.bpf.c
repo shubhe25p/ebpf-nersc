@@ -8,13 +8,13 @@ struct {
     __type(key, u32);
     __type(value, u32);
     __uint(max_entries, 1);
-} cnt SEC(".maps");
+} cnt_map SEC(".maps");
 
 SEC("tracepoint/syscalls/sys_enter_openat")
 int bpf_prog1(void* ctx)
 {
     u32 key = 0;
-    u32* cnt = bpf_map_lookup_elem(&cnt, &key);
+    u32 *cnt = bpf_map_lookup_elem(&cnt_map, &key);
     if(!cnt)
         return 0;
     __sync_fetch_and_add(cnt, 1);
