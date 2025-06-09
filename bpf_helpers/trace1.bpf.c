@@ -13,12 +13,13 @@ struct {
 SEC("tracepoint/syscalls/sys_enter_openat")
 int bpf_prog1(void* ctx)
 {
+    const char fmt_str[] = "Hello, world! number of openat calls total %d\n";
     u32 key = 0;
     u32 *cnt = bpf_map_lookup_elem(&cnt_map, &key);
     if(!cnt)
         return 0;
     __sync_fetch_and_add(cnt, 1);
-    bpf_printk("number of openat calls %d\n" *cnt);
+    bpf_trace_printk(fmt_str, sizeof(fmt_str), *cnt);
     return 0;
 }
 
