@@ -4,14 +4,14 @@
 #include "trace1.skel.h"
 
 int main(void) {
-    struct trace1_openat_bpf *skel;
+    struct trace1_bpf *skel;
     uint32_t key = 0, next_key;
     uint64_t value;
     int err;
 
-    skel = trace1_openat_bpf__open_and_load();
+    skel = trace1_bpf__open_and_load();
     if (!skel) return 1;
-    err = trace1_openat_bpf__attach(skel);
+    err = trace1_bpf__attach(skel);
     if (err) goto cleanup;
 
     printf("Polling… CTRL-C to exit\n");
@@ -22,6 +22,6 @@ int main(void) {
     }
 
 cleanup:
-    trace1_openat_bpf__destroy(skel);
+    trace1_bpf__destroy(skel);
     return err;
 }
