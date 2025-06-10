@@ -14,9 +14,14 @@ SEC("tracepoint/syscalls/sys_enter_openat")
 int bpf_prog1(void* ctx)
 {
     const char fmt_str[] = "Hello, world! number of openat calls total %d\n";
-    u32 key = 0;
+    u32 key = 0, init_val=0;
     u32 *cnt = bpf_map_lookup_elem(&cnt_map, &key);
-    bpf_map_update_elem(&cnt_map, &key, cnt, BPF_ANY);
+    if(cnt)
+        __sync_fetch_and_add(value, 1);
+    else{
+        bpf_map_update_elem(&cnt_map, &key, &init_val, BPF_ANY);
+        return 0;
+    }
     bpf_trace_printk(fmt_str, sizeof(fmt_str), *cnt);
     return 0;
 }
