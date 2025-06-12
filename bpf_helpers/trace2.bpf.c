@@ -3,13 +3,14 @@
 #include <bpf/bpf_core_read.h>
 
 SEC("tracepoint/syscalls/sys_enter_execve")
-int bpf_prog1(struct pt_regs *ctx, const char *filename)
+int bpf_prog1(struct pt_regs *ctx)
 {
     char fname[256];
-
-    /* safely read user-space filename */
-    if (bpf_core_read_user_str(fname, sizeof(fname), filename) > 0)
-        bpf_printk("execve: %s\n", filename);
+    u32 snr = ctx->__syscall_nr;
+    bpf_printk("%d", snr);
+    // /* safely read user-space filename */
+    // if (bpf_core_read_user_str(fname, sizeof(fname), filename) > 0)
+    //     bpf_printk("execve: %s\n", filename);
 
     return 0;
 }
