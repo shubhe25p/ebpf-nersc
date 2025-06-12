@@ -11,7 +11,13 @@ int bpf_prog1(struct syscall_trace_enter* ctx)
 	if (ret < 0) {
 		return 0;
 	}
-    bpf_printk("String %s\n", fname);
+    int len=0;
+    for(long unsigned i=0;i<1<<10;i++)
+    {
+        if(fname[i]!='\0')
+            len++;
+    }
+    bpf_printk("filename %s with len %d \n", fname, len);
 
 
     return 0;
