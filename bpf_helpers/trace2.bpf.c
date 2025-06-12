@@ -7,8 +7,12 @@ int bpf_prog1(struct syscall_trace_enter* ctx)
 {
     char fname[256];
 
-    if (BPF_CORE_READ_STR_INTO(fname, sizeof(fname), (const char*)ctx->args[0]) > 0)
-        bpf_printk("execve: %s\n", fnmaw);
+    int ret = bpf_probe_read_user_str(fname, sizeof(fname), (const char*)ctx->args[0]);
+	if (ret < 0) {
+		return 0;
+	}
+    bpf_printk("String %s\n", fname);
+
 
     return 0;
 }
