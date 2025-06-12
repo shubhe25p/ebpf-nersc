@@ -3,7 +3,7 @@
 #include <bpf/bpf_core_read.h>
 
 SEC("tracepoint/syscalls/sys_enter_execve")
-int trace_execve(struct pt_regs *ctx, const char __user *filename)
+int trace_execve(struct pt_regs *ctx, const char *filename)
 {
     char filename[256];
     const char *fname = (const char *)(filename);
