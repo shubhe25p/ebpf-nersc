@@ -16,8 +16,11 @@ int bpf_prog1(struct syscall_trace_enter* ctx)
     {
         if(fname[i]=='0')
             break;
-        else
+        else{
             len++;
+            bpf_printk("char %c \n", fname[i]);
+
+        }
     }
     bpf_printk("filename %s with len %d \n", fname, len);
 
