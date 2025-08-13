@@ -1,0 +1,9 @@
+[submodule "bpf_helpers/libbpf"]
+	path = bpf_helpers/libbpf
+	url = https://github.com/libbpf/libbpf.git
+[submodule "bpf_helpers/bpftool"]
+	path = bpf_helpers/bpftool
+	url = https://github.com/libbpf/bpftool
+[submodule "bpf_helpers/vmlinux"]
+	path = bpf_helpers/vmlinux
+	url = https://github.com/libbpf/vmlinux.h.git
